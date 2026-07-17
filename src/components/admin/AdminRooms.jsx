@@ -1,0 +1,277 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getRooms, addRoom, updateRoom, deleteRoom } from '../../firebase/firestore';
+import { uploadFileToS3 } from '../../aws/upload';
+import toast from 'react-hot-toast';
+
+const AdminRooms = () => {
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'ac',
+    price: '',
+    guests: 2,
+    bed: '1 King Bed',
+    description: '',
+    amenities: ''
+  });
+
+  useEffect(() => {
+    fetchRooms();
+  }, []);
+
+  const fetchRooms = async () => {
+    try {
+      setLoading(true);
+      const data = await getRooms();
+      if (data && data.length > 0) {
+        setRooms(data);
+      } else {
+        setRooms([
+          { id: '1', name: 'Deluxe AC Room', type: 'ac', price: 1200, guests: 2, bed: '1 King Bed' },
+          { id: '2', name: 'Deluxe Non-AC Room', type: 'non-ac', price: 800, guests: 2, bed: '1 King Bed' }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size should be less than 5MB');
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      let imageUrl = '';
+      if (imageFile) {
+        imageUrl = await uploadFileToS3(imageFile, 'rooms');
+      }
+      const roomData = {
+        name: formData.name,
+        type: formData.type,
+        price: Number(formData.price),
+        guests: Number(formData.guests),
+        bed: formData.bed,
+        description: formData.description || '',
+        amenities: formData.amenities ? formData.amenities.split(',').map(item => item.trim()) : [],
+        image: imageUrl,
+        createdAt: new Date().toISOString()
+      };
+      await addRoom(roomData);
+      toast.success('✅ Room added successfully!');
+      resetForm();
+      await fetchRooms();
+    } catch (error) {
+      toast.error('Failed to add room');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEdit = (room) => {
+    setEditingRoom(room);
+    setFormData({
+      name: room.name,
+      type: room.type,
+      price: room.price,
+      guests: room.guests,
+      bed: room.bed || '1 King Bed',
+      description: room.description || '',
+      amenities: room.amenities ? room.amenities.join(', ') : ''
+    });
+    setImagePreview(room.image || '');
+    setShowForm(true);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      let imageUrl = editingRoom?.image || '';
+      if (imageFile) {
+        imageUrl = await uploadFileToS3(imageFile, 'rooms');
+      }
+      const roomData = {
+        name: formData.name,
+        type: formData.type,
+        price: Number(formData.price),
+        guests: Number(formData.guests),
+        bed: formData.bed,
+        description: formData.description || '',
+        amenities: formData.amenities ? formData.amenities.split(',').map(item => item.trim()) : [],
+        image: imageUrl
+      };
+      await updateRoom(editingRoom.id, roomData);
+      toast.success('✅ Room updated successfully!');
+      resetForm();
+      await fetchRooms();
+    } catch (error) {
+      toast.error('Failed to update room');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this room?')) return;
+    try {
+      await deleteRoom(id);
+      toast.success('✅ Room deleted successfully!');
+      await fetchRooms();
+    } catch (error) {
+      toast.error('Failed to delete room');
+    }
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingRoom(null);
+    setFormData({
+      name: '',
+      type: 'ac',
+      price: '',
+      guests: 2,
+      bed: '1 King Bed',
+      description: '',
+      amenities: ''
+    });
+    setImageFile(null);
+    setImagePreview('');
+  };
+
+  if (loading) {
+    return (
+      <div className="admin-loading-pro">
+        <div className="spinner-pro"></div>
+        <p>Loading rooms...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="admin-rooms-pro">
+      <div className="admin-header-pro">
+        <div>
+          <h1>🛏️ Manage Rooms</h1>
+          <p>Add, edit, or delete rooms</p>
+          <span className="room-count-pro">{rooms.length} rooms</span>
+        </div>
+        <div className="admin-actions-pro">
+          <button className="btn-add-pro" onClick={() => setShowForm(!showForm)}>
+            {showForm ? '✕ Cancel' : '➕ Add Room'}
+          </button>
+          <Link to="/admin" className="btn-back-pro">← Back</Link>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="admin-form-pro">
+          <h3>{editingRoom ? '✏️ Edit Room' : '➕ Add New Room'}</h3>
+          <form onSubmit={editingRoom ? handleUpdate : handleAdd}>
+            <div className="form-grid-pro">
+              <div className="form-group-pro">
+                <label>Room Name <span className="required">*</span></label>
+                <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required placeholder="e.g., Deluxe AC Room" />
+              </div>
+              <div className="form-group-pro">
+                <label>Room Type <span className="required">*</span></label>
+                <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
+                  <option value="ac">AC Room</option>
+                  <option value="non-ac">Non-AC Room</option>
+                </select>
+              </div>
+              <div className="form-group-pro">
+                <label>Price per Night <span className="required">*</span></label>
+                <input type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required placeholder="e.g., 1200" />
+              </div>
+              <div className="form-group-pro">
+                <label>Guests <span className="required">*</span></label>
+                <input type="number" value={formData.guests} onChange={(e) => setFormData({...formData, guests: Number(e.target.value)})} min="1" max="4" required />
+              </div>
+              <div className="form-group-pro">
+                <label>Bed Type</label>
+                <input type="text" value={formData.bed} onChange={(e) => setFormData({...formData, bed: e.target.value})} placeholder="e.g., 1 King Bed" />
+              </div>
+              <div className="form-group-pro">
+                <label>Image</label>
+                <input type="file" accept="image/*" onChange={handleImageChange} />
+                {imagePreview && <img src={imagePreview} alt="Preview" className="image-preview-pro" />}
+              </div>
+              <div className="form-group-pro full-width">
+                <label>Amenities (comma separated)</label>
+                <input type="text" value={formData.amenities} onChange={(e) => setFormData({...formData, amenities: e.target.value})} placeholder="e.g., TV, Free Wi-Fi, Room Service" />
+              </div>
+              <div className="form-group-pro full-width">
+                <label>Description</label>
+                <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows="3" placeholder="Room description..." />
+              </div>
+            </div>
+            <button type="submit" className="btn-save-pro" disabled={submitting}>
+              {submitting ? 'Saving...' : editingRoom ? '💾 Update Room' : '➕ Add Room'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      <div className="admin-table-pro">
+        <table>
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Price</th>
+              <th>Guests</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rooms.map((room) => (
+              <tr key={room.id}>
+                <td>
+                  {room.image ? (
+                    <img src={room.image} alt={room.name} className="table-image-pro" />
+                  ) : (
+                    <span className="table-icon-pro">🛏️</span>
+                  )}
+                </td>
+                <td><strong>{room.name}</strong></td>
+                <td>{room.type === 'ac' ? '❄️ AC' : '🌬️ Non-AC'}</td>
+                <td>₹{room.price}</td>
+                <td>{room.guests}</td>
+                <td>
+                  <button className="btn-edit-pro" onClick={() => handleEdit(room)}>✏️ Edit</button>
+                  <button className="btn-delete-pro" onClick={() => handleDelete(room.id)}>🗑️ Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default AdminRooms;
