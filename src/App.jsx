@@ -53,6 +53,8 @@ function App() {
           {/* ========================================= */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          
+          {/* ✅ Admin Login - PUBLIC (No ProtectedRoute) */}
           <Route path="/admin/login" element={<AdminLogin />} />
           
           {/* ========================================= */}
@@ -79,18 +81,28 @@ function App() {
           {/* ========================================= */}
           {/* ADMIN ROUTES - Protected */}
           {/* ========================================= */}
+          {/* ✅ Admin Dashboard - Main route */}
           <Route path="/admin" element={
             <ProtectedRoute>
               <AdminDashboard />
             </ProtectedRoute>
           } />
           
+          {/* ✅ Admin Dashboard - Catch all admin routes */}
+          <Route path="/admin/*" element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+          
+          {/* ✅ Admin Rooms */}
           <Route path="/admin/rooms" element={
             <ProtectedRoute>
               <AdminRooms />
             </ProtectedRoute>
           } />
           
+          {/* ✅ Admin Bookings */}
           <Route path="/admin/bookings" element={
             <ProtectedRoute>
               <AdminBookings />
