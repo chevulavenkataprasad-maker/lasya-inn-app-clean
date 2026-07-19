@@ -11,16 +11,58 @@ const Gallery = () => {
   const { user } = useAuth();
   
   // ✅ Admin Check - localStorage
-  const isAdmin = localStorage.getItem('adminLoggedIn') === 'true';
-  
-  // ✅ Also check email
-  const adminEmails = ['admin@gmail.com', 'test@gmail.com', 'venkat@gmail.com'];
-  const isAdminByEmail = adminEmails.includes(user?.email);
-  const isAdminFinal = isAdmin || isAdminByEmail;
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
 
-  console.log('👑 isAdmin (Storage):', isAdmin);
-  console.log('👑 isAdmin (Email):', isAdminByEmail);
-  console.log('👑 isAdmin (Final):', isAdminFinal);
+  // ✅ Admin Credentials
+  const adminCredentials = [
+    { email: 'lasyainnrooms@gmail.com', password: 'Lasya@1999!' }
+  ];
+
+  // ✅ Check if already logged in
+  useEffect(() => {
+    const isAdminLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+    setIsAdmin(isAdminLoggedIn);
+  }, []);
+
+  // ✅ Handle Admin Login
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    
+    if (!adminEmail || !adminPassword) {
+      toast.error('Please enter admin credentials');
+      return;
+    }
+
+    try {
+      setAdminLoading(true);
+      
+      const isValid = adminCredentials.some(
+        cred => cred.email === adminEmail && cred.password === adminPassword
+      );
+      
+      if (isValid) {
+        toast.success('✅ Admin verified!');
+        localStorage.setItem('adminLoggedIn', 'true');
+        localStorage.setItem('adminEmail', adminEmail);
+        setIsAdmin(true);
+        setShowAdminLogin(false);
+        setAdminEmail('');
+        setAdminPassword('');
+      } else {
+        toast.error('❌ Invalid admin credentials');
+      }
+      
+    } catch (error) {
+      console.error('Admin login error:', error);
+      toast.error('Admin verification failed');
+    } finally {
+      setAdminLoading(false);
+    }
+  };
 
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +100,7 @@ const Gallery = () => {
     }
   };
 
+  // ✅ UPLOAD - Admin Only
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) {
@@ -100,6 +143,7 @@ const Gallery = () => {
     }
   };
 
+  // ✅ DELETE - Admin Only
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this image?')) return;
 
@@ -131,38 +175,96 @@ const Gallery = () => {
       
       <div className="gallery-container-pro">
         
-        {/* ✅ UPLOAD SECTION - ADMIN ONLY */}
-        {isAdminFinal && (
-          <div className="gallery-upload-pro">
+        {/* ============================================ */}
+        {/* UPLOAD SECTION - Admin Only */}
+        {/* ============================================ */}
+        <div className="gallery-upload-pro">
+          {isAdmin ? (
+            // ✅ Admin is logged in - Show upload
+            <>
+              <button 
+                className="upload-toggle-btn"
+                onClick={() => setShowUpload(!showUpload)}
+              >
+                {showUpload ? '✕ Close Upload' : '📤 Upload Image'}
+              </button>
+              
+              {showUpload && (
+                <div className="upload-form-pro">
+                  <label className="upload-btn-pro">
+                    {uploading ? '⏳ Uploading...' : '📤 Choose Image'}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleUpload}
+                      disabled={uploading}
+                    />
+                  </label>
+                  {uploading && (
+                    <span style={{ marginLeft: '15px', color: '#666' }}>
+                      Please wait...
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            // ✅ Admin not logged in - Show login button
             <button 
               className="upload-toggle-btn"
-              onClick={() => setShowUpload(!showUpload)}
+              onClick={() => setShowAdminLogin(true)}
             >
-              {showUpload ? '✕ Close Upload' : '📤 Upload Image'}
+              🔐 Admin Login to Upload
             </button>
-            
-            {showUpload && (
-              <div className="upload-form-pro">
-                <label className="upload-btn-pro">
-                  {uploading ? '⏳ Uploading...' : '📤 Choose Image'}
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleUpload}
-                    disabled={uploading}
+          )}
+        </div>
+
+        {/* ============================================ */}
+        {/* ADMIN LOGIN MODAL */}
+        {/* ============================================ */}
+        {showAdminLogin && (
+          <div className="admin-login-modal">
+            <div className="admin-login-modal-content">
+              <h2>🔐 Admin Verification</h2>
+              <p>Please enter admin credentials to upload images</p>
+              
+              <form onSubmit={handleAdminLogin}>
+                <div className="form-group">
+                  <label>Admin Email</label>
+                  <input
+                    type="email"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    placeholder="Enter admin email"
+                    required
                   />
-                </label>
-                {uploading && (
-                  <span style={{ marginLeft: '15px', color: '#666' }}>
-                    Please wait...
-                  </span>
-                )}
-              </div>
-            )}
+                </div>
+                
+                <div className="form-group">
+                  <label>Admin Password</label>
+                  <input
+                    type="password"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    placeholder="Enter admin password"
+                    required
+                  />
+                </div>
+                
+                <div className="modal-actions">
+                  <button type="submit" className="btn-confirm" disabled={adminLoading}>
+                    {adminLoading ? '⏳ Verifying...' : '✅ Verify'}
+                  </button>
+                  <button type="button" className="btn-cancel" onClick={() => setShowAdminLogin(false)}>
+                    ❌ Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
-        {/* Categories */}
+        {/* Categories - Both Admin & User */}
         <div className="gallery-filters-pro">
           {categories.map(cat => (
             <button
@@ -175,12 +277,12 @@ const Gallery = () => {
           ))}
         </div>
 
-        {/* Gallery Grid */}
+        {/* Gallery Grid - Both Admin & User */}
         <div className="gallery-grid-pro">
           {filteredImages.length === 0 ? (
             <div className="empty-gallery-pro">
               <span>📭</span>
-              <p>{isAdminFinal ? 'No images. Upload your first image!' : 'No images available'}</p>
+              <p>{isAdmin ? 'No images. Upload your first image!' : 'No images available'}</p>
             </div>
           ) : (
             filteredImages.map((image) => (
@@ -210,7 +312,7 @@ const Gallery = () => {
                 </div>
                 
                 {/* Delete Button - Admin Only */}
-                {isAdminFinal && (
+                {isAdmin && (
                   <button 
                     className="admin-delete-btn-pro"
                     onClick={(e) => {
@@ -227,7 +329,7 @@ const Gallery = () => {
         </div>
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox - Both Admin & User */}
       {selectedImage && (
         <div className="lightbox-pro" onClick={() => setSelectedImage(null)}>
           <div className="lightbox-content-pro" onClick={(e) => e.stopPropagation()}>
