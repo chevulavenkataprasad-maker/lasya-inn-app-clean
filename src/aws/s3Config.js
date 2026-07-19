@@ -6,6 +6,9 @@ import AWS from 'aws-sdk';
 // AWS S3 CONFIGURATION
 // ============================================
 
+// ✅ HARDCODE S3 BUCKET NAME
+const S3_BUCKET_NAME = 'lasya-inn-rooms-images';  // ← Hardcoded bucket
+
 // ✅ Get AWS credentials from environment variables
 const AWS_ACCESS_KEY_ID = process.env.REACT_APP_AWS_ACCESS_KEY_ID;
 const AWS_SECRET_ACCESS_KEY = process.env.REACT_APP_AWS_SECRET_ACCESS_KEY;
@@ -33,8 +36,8 @@ const s3 = new AWS.S3({
   signatureVersion: 'v4'
 });
 
-// ✅ Export bucket name
-export const S3_BUCKET = process.env.REACT_APP_AWS_S3_BUCKET;
+// ✅ Export bucket name - HARDCODED
+export const S3_BUCKET = S3_BUCKET_NAME;  // ← Changed to hardcoded
 
 // ✅ Export S3 instance
 export default s3;

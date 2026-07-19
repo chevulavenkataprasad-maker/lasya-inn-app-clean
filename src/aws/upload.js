@@ -12,6 +12,11 @@ export const uploadFileToS3 = async (file, folder = 'rooms') => {
     console.log('📤 File:', file.name);
     console.log('📤 Folder:', folder);
     
+    // ✅ Check if bucket exists
+    if (!S3_BUCKET) {
+      throw new Error('S3_BUCKET is not configured. Please check your environment variables.');
+    }
+    
     const fileName = `${folder}/${Date.now()}_${file.name}`;
     
     const params = {
