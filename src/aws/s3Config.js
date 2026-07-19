@@ -6,18 +6,15 @@ import AWS from 'aws-sdk';
 // AWS S3 CONFIGURATION
 // ============================================
 
-// ✅ HARDCODE S3 BUCKET NAME
-const S3_BUCKET_NAME = 'lasya-inn-rooms-images';  // ← Hardcoded bucket
-
-// ✅ Get AWS credentials from environment variables
-const AWS_ACCESS_KEY_ID = process.env.REACT_APP_AWS_ACCESS_KEY_ID;
-const AWS_SECRET_ACCESS_KEY = process.env.REACT_APP_AWS_SECRET_ACCESS_KEY;
-const AWS_REGION = process.env.REACT_APP_AWS_REGION || 'ap-south-1';
+// ✅ HARDCODE ALL CREDENTIALS - Temporary Fix
+const AWS_ACCESS_KEY_ID = 'AKIAUQQAIDGZB7FS6AV4';
+const AWS_SECRET_ACCESS_KEY = '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';
+const AWS_REGION = 'ap-south-1';
+const S3_BUCKET_NAME = 'lasya-inn-rooms-images';
 
 // ✅ Validate credentials
 if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
   console.warn('⚠️ AWS credentials not found. S3 uploads will fail.');
-  console.warn('⚠️ Please set REACT_APP_AWS_ACCESS_KEY_ID and REACT_APP_AWS_SECRET_ACCESS_KEY');
 }
 
 // ✅ Configure AWS SDK
@@ -36,8 +33,8 @@ const s3 = new AWS.S3({
   signatureVersion: 'v4'
 });
 
-// ✅ Export bucket name - HARDCODED
-export const S3_BUCKET = S3_BUCKET_NAME;  // ← Changed to hardcoded
+// ✅ Export bucket name
+export const S3_BUCKET = S3_BUCKET_NAME;
 
 // ✅ Export S3 instance
 export default s3;
