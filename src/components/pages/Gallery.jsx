@@ -10,12 +10,13 @@ import './Gallery.css';
 const Gallery = () => {
   const { user } = useAuth();
   
-  // ✅ Admin Check - localStorage
+  // ✅ Admin states
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
 
   // ✅ Admin Credentials
   const adminCredentials = [
@@ -52,6 +53,12 @@ const Gallery = () => {
         setShowAdminLogin(false);
         setAdminEmail('');
         setAdminPassword('');
+        
+        // ✅ If there is a pending file, upload it
+        if (pendingFile) {
+          await handleUpload(pendingFile);
+          setPendingFile(null);
+        }
       } else {
         toast.error('❌ Invalid admin credentials');
       }
@@ -63,6 +70,72 @@ const Gallery = () => {
       setAdminLoading(false);
     }
   };
+
+  // ✅ Handle File Select - Show Admin Login
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      toast.error('No file selected');
+      return;
+    }
+
+    // ✅ Check if admin is logged in
+    if (isAdmin) {
+      // ✅ Already admin - upload directly
+      handleUpload(file);
+    } else {
+      // ✅ Not admin - show login modal
+      setPendingFile(file);
+      setShowAdminLogin(true);
+    }
+    
+    // Reset input
+    e.target.value = '';
+  };
+
+  // ✅ Upload File
+  const handleUpload = async (file) => {
+    if (!file) {
+      toast.error('No file selected');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size should be less than 5MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      console.log('📤 Uploading file:', file.name);
+      const url = await uploadFileToS3(file, 'gallery');
+      console.log('✅ Uploaded URL:', url);
+
+      const imageData = {
+        url: url,
+        title: file.name.split('.')[0],
+        category: 'Rooms',
+        createdAt: new Date().toISOString(),
+        uploadedBy: user?.email || 'admin'
+      };
+
+      await addGalleryImage(imageData);
+      console.log('✅ Saved to Firestore');
+
+      toast.success('✅ Image uploaded successfully!');
+      await fetchImages();
+      setShowUpload(false);
+      setPendingFile(null);
+      
+    } catch (error) {
+      console.error('❌ Upload error:', error);
+      toast.error('Upload failed: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // ... rest of states and functions
 
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,50 +173,6 @@ const Gallery = () => {
     }
   };
 
-  // ✅ UPLOAD - Admin Only
-  const handleUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-      toast.error('No file selected');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size should be less than 5MB');
-      return;
-    }
-
-    setUploading(true);
-    try {
-      console.log('📤 Uploading file:', file.name);
-      const url = await uploadFileToS3(file, 'gallery');
-      console.log('✅ Uploaded URL:', url);
-
-      const imageData = {
-        url: url,
-        title: file.name.split('.')[0],
-        category: 'Rooms',
-        createdAt: new Date().toISOString(),
-        uploadedBy: user?.email || 'admin'
-      };
-
-      await addGalleryImage(imageData);
-      console.log('✅ Saved to Firestore');
-
-      toast.success('✅ Image uploaded successfully!');
-      await fetchImages();
-      e.target.value = '';
-      setShowUpload(false);
-      
-    } catch (error) {
-      console.error('❌ Upload error:', error);
-      toast.error('Upload failed: ' + error.message);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // ✅ DELETE - Admin Only
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this image?')) return;
 
@@ -176,18 +205,39 @@ const Gallery = () => {
       <div className="gallery-container-pro">
         
         {/* ============================================ */}
-        {/* UPLOAD SECTION - Admin Only */}
+        {/* UPLOAD SECTION */}
         {/* ============================================ */}
         <div className="gallery-upload-pro">
           {isAdmin ? (
             // ✅ Admin is logged in - Show upload
             <>
-              <button 
-                className="upload-toggle-btn"
-                onClick={() => setShowUpload(!showUpload)}
-              >
-                {showUpload ? '✕ Close Upload' : '📤 Upload Image'}
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button 
+                  className="upload-toggle-btn"
+                  onClick={() => setShowUpload(!showUpload)}
+                >
+                  {showUpload ? '✕ Close Upload' : '📤 Upload Image'}
+                </button>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('adminLoggedIn');
+                    localStorage.removeItem('adminEmail');
+                    setIsAdmin(false);
+                    toast.success('Logged out');
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  🚪 Logout
+                </button>
+              </div>
               
               {showUpload && (
                 <div className="upload-form-pro">
@@ -196,7 +246,7 @@ const Gallery = () => {
                     <input 
                       type="file" 
                       accept="image/*" 
-                      onChange={handleUpload}
+                      onChange={handleFileSelect}
                       disabled={uploading}
                     />
                   </label>
@@ -209,13 +259,23 @@ const Gallery = () => {
               )}
             </>
           ) : (
-            // ✅ Admin not logged in - Show login button
-            <button 
-              className="upload-toggle-btn"
-              onClick={() => setShowAdminLogin(true)}
-            >
-              🔐 Admin Login to Upload
-            </button>
+            // ✅ Admin not logged in - Show choose image button
+            <div className="upload-form-pro">
+              <label className="upload-btn-pro">
+                {uploading ? '⏳ Uploading...' : '📤 Choose Image'}
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleFileSelect}
+                  disabled={uploading}
+                />
+              </label>
+              {uploading && (
+                <span style={{ marginLeft: '15px', color: '#666' }}>
+                  Please wait...
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -237,6 +297,7 @@ const Gallery = () => {
                     onChange={(e) => setAdminEmail(e.target.value)}
                     placeholder="Enter admin email"
                     required
+                    autoFocus
                   />
                 </div>
                 
@@ -255,7 +316,10 @@ const Gallery = () => {
                   <button type="submit" className="btn-confirm" disabled={adminLoading}>
                     {adminLoading ? '⏳ Verifying...' : '✅ Verify'}
                   </button>
-                  <button type="button" className="btn-cancel" onClick={() => setShowAdminLogin(false)}>
+                  <button type="button" className="btn-cancel" onClick={() => {
+                    setShowAdminLogin(false);
+                    setPendingFile(null);
+                  }}>
                     ❌ Cancel
                   </button>
                 </div>
@@ -264,7 +328,7 @@ const Gallery = () => {
           </div>
         )}
 
-        {/* Categories - Both Admin & User */}
+        {/* Categories */}
         <div className="gallery-filters-pro">
           {categories.map(cat => (
             <button
@@ -277,7 +341,7 @@ const Gallery = () => {
           ))}
         </div>
 
-        {/* Gallery Grid - Both Admin & User */}
+        {/* Gallery Grid */}
         <div className="gallery-grid-pro">
           {filteredImages.length === 0 ? (
             <div className="empty-gallery-pro">
@@ -329,7 +393,7 @@ const Gallery = () => {
         </div>
       </div>
 
-      {/* Lightbox - Both Admin & User */}
+      {/* Lightbox */}
       {selectedImage && (
         <div className="lightbox-pro" onClick={() => setSelectedImage(null)}>
           <div className="lightbox-content-pro" onClick={(e) => e.stopPropagation()}>
