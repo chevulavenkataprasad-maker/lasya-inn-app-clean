@@ -46,7 +46,9 @@ const Home = () => {
   return (
     <div className="home-page">
       
-      {/* Hero Section */}
+      {/* ========================================= */}
+      {/* HERO SECTION */}
+      {/* ========================================= */}
       <section className="hero-section">
         <div className="hero-content">
           <h1>WELCOME TO</h1>
@@ -64,7 +66,9 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Booking Widget */}
+      {/* ========================================= */}
+      {/* BOOKING WIDGET */}
+      {/* ========================================= */}
       <section className="booking-widget">
         <div className="widget-container">
           <div className="widget-item">
@@ -111,11 +115,10 @@ const Home = () => {
             CHECK AVAILABILITY
           </button>
         </div>
-       
       </section>
 
       {/* ========================================= */}
-      {/* OUR ROOMS & SUITES - FIXED IMAGES */}
+      {/* OUR ROOMS & SUITES - WITH IMAGES */}
       {/* ========================================= */}
       <section className="rooms-section">
         <h2>OUR ROOMS & SUITES</h2>
@@ -136,7 +139,7 @@ const Home = () => {
               rooms.map((room) => (
                 <div key={room.id} className="room-card">
                   <div className="room-image">
-                    {/* ✅ IMAGE DISPLAY FIX */}
+                    {/* ✅ IMAGE DISPLAY - Fixed */}
                     {room.imageUrl ? (
                       <img 
                         src={room.imageUrl} 
@@ -185,7 +188,9 @@ const Home = () => {
         <Link to="/rooms" className="btn-view-all">VIEW ALL ROOMS →</Link>
       </section>
 
-      {/* Why Choose Us */}
+      {/* ========================================= */}
+      {/* WHY CHOOSE US */}
+      {/* ========================================= */}
       <section className="why-choose">
         <h2>WHY CHOOSE US?</h2>
         <div className="features-grid">
