@@ -135,6 +135,10 @@ const Rooms = () => {
         ) : (
           filteredRooms.map((room) => (
             <div key={room.id} className="room-card-pro">
+              
+              {/* ========================================= */}
+              {/* ✅ ROOM IMAGE WITH DEFAULT FALLBACK */}
+              {/* ========================================= */}
               <div className="room-image-pro">
                 {room.imageUrl ? (
                   <img 
@@ -142,15 +146,27 @@ const Rooms = () => {
                     alt={room.name}
                     loading="lazy"
                     onError={(e) => {
+                      console.log('❌ Image error:', room.imageUrl);
                       e.target.style.display = 'none';
                       e.target.parentElement.innerHTML = '🛏️';
                     }}
                   />
                 ) : (
-                  <span>🛏️</span>
+                  <img 
+                    src="/images/bed.jpeg" 
+                    alt={room.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    loading="lazy"
+                    onError={(e) => {
+                      console.log('❌ Default image error');
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '🛏️';
+                    }}
+                  />
                 )}
                 <span className="room-badge-pro">{room.type || 'Standard'}</span>
               </div>
+              
               <div className="room-info-pro">
                 <h3>{room.name}</h3>
                 <p>{room.description || 'Comfortable room for your stay'}</p>
