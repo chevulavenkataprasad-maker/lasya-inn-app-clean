@@ -1,4 +1,4 @@
-a// src/components/pages/Rooms.jsx
+// src/components/pages/Rooms.jsx
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
