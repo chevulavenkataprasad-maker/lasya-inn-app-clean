@@ -1,11 +1,17 @@
+a// src/components/pages/Rooms.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getRooms } from '../../firebase/firestore';
+import toast from 'react-hot-toast';
+import './Rooms.css';
 
 const Rooms = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [activeCategory, setActiveCategory] = useState('All');
+
+  const categories = ['All', 'AC', 'Non-AC', 'Deluxe', 'Suite', 'Standard'];
 
   useEffect(() => {
     fetchRooms();
@@ -15,24 +21,71 @@ const Rooms = () => {
     try {
       setLoading(true);
       const data = await getRooms();
+      console.log('🏨 Rooms fetched:', data);
+      
       if (data && data.length > 0) {
         setRooms(data);
       } else {
+        // Demo rooms
         setRooms([
-          { id: '1', name: 'Deluxe AC Room', type: 'ac', price: 1200, guests: 2, bed: '1 King Bed', image: '' },
-          { id: '2', name: 'Deluxe Non-AC Room', type: 'non-ac', price: 800, guests: 2, bed: '1 King Bed', image: '' },
-          { id: '3', name: 'Executive Suite AC', type: 'ac', price: 2500, guests: 3, bed: '1 King Bed + Sofa', image: '' },
-          { id: '4', name: 'Family Room AC', type: 'ac', price: 1800, guests: 4, bed: '2 King Beds', image: '' }
+          { 
+            id: '1', 
+            name: 'Deluxe AC Room', 
+            type: 'AC', 
+            price: 1200, 
+            capacity: 2, 
+            beds: 1, 
+            description: 'Luxurious AC room with king bed and modern amenities.',
+            amenities: ['WiFi', 'TV', 'AC', 'Mini Bar'],
+            imageUrl: ''
+          },
+          { 
+            id: '2', 
+            name: 'Deluxe Non-AC Room', 
+            type: 'Non-AC', 
+            price: 800, 
+            capacity: 2, 
+            beds: 1, 
+            description: 'Comfortable non-AC room with all basic amenities.',
+            amenities: ['WiFi', 'TV', 'Fan'],
+            imageUrl: ''
+          },
+          { 
+            id: '3', 
+            name: 'Executive Suite', 
+            type: 'Suite', 
+            price: 2500, 
+            capacity: 3, 
+            beds: 2, 
+            description: 'Spacious suite with separate living area and premium amenities.',
+            amenities: ['WiFi', 'TV', 'AC', 'Mini Bar', 'Balcony'],
+            imageUrl: ''
+          },
+          { 
+            id: '4', 
+            name: 'Standard AC Room', 
+            type: 'Standard', 
+            price: 1500, 
+            capacity: 2, 
+            beds: 1, 
+            description: 'Standard AC room with comfortable bedding.',
+            amenities: ['WiFi', 'TV', 'AC'],
+            imageUrl: ''
+          }
         ]);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('❌ Error:', error);
+      toast.error('Failed to load rooms');
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredRooms = filter === 'all' ? rooms : rooms.filter(r => r.type === filter);
+  // Filter rooms based on category
+  const filteredRooms = activeCategory === 'All' 
+    ? rooms 
+    : rooms.filter(room => room.type === activeCategory);
 
   if (loading) {
     return (
@@ -45,41 +98,80 @@ const Rooms = () => {
 
   return (
     <div className="rooms-page-pro">
+      
+      {/* ========================================= */}
+      {/* HERO WITH BACKGROUND IMAGE */}
+      {/* ========================================= */}
       <div className="rooms-hero-pro">
-        <h1>🏨 Our Rooms & Suites</h1>
-        <p>Comfortable rooms for relaxing stay</p>
+        <div className="rooms-hero-content">
+          <h1>🛏️ Our Rooms</h1>
+          <p>Comfortable rooms for your relaxing stay</p>
+        </div>
       </div>
 
-      <div className="rooms-container-pro">
-        <div className="rooms-filters-pro">
-          <button className={filter === 'all' ? 'filter-active-pro' : 'filter-btn-pro'} onClick={() => setFilter('all')}>All Rooms</button>
-          <button className={filter === 'ac' ? 'filter-active-pro' : 'filter-btn-pro'} onClick={() => setFilter('ac')}>❄️ AC Rooms</button>
-          <button className={filter === 'non-ac' ? 'filter-active-pro' : 'filter-btn-pro'} onClick={() => setFilter('non-ac')}>🌬️ Non-AC</button>
-        </div>
+      {/* ========================================= */}
+      {/* CATEGORY FILTERS */}
+      {/* ========================================= */}
+      <div className="rooms-filters-pro">
+        {categories.map(cat => (
+          <button
+            key={cat}
+            className={activeCategory === cat ? 'filter-active-pro' : 'filter-btn-pro'}
+            onClick={() => setActiveCategory(cat)}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
 
-        <div className="rooms-grid-pro">
-          {filteredRooms.map((room) => (
+      {/* ========================================= */}
+      {/* ROOMS GRID */}
+      {/* ========================================= */}
+      <div className="rooms-grid-pro">
+        {filteredRooms.length === 0 ? (
+          <div className="no-rooms-pro">
+            <p>No rooms available</p>
+          </div>
+        ) : (
+          filteredRooms.map((room) => (
             <div key={room.id} className="room-card-pro">
               <div className="room-image-pro">
-                {room.image ? (
-                  <img src={room.image} alt={room.name} />
+                {room.imageUrl ? (
+                  <img 
+                    src={room.imageUrl} 
+                    alt={room.name}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '🛏️';
+                    }}
+                  />
                 ) : (
                   <span>🛏️</span>
                 )}
+                <span className="room-badge-pro">{room.type || 'Standard'}</span>
               </div>
-              <div className="room-badge-pro">{room.type === 'ac' ? '❄️ AC' : '🌬️ Non-AC'}</div>
-              <h3>{room.name}</h3>
-              <p>{room.description || 'Comfortable room with all amenities.'}</p>
-              <ul>
-                <li>👥 {room.guests} Guests</li>
-                <li>🛌 {room.bed}</li>
-                <li>📶 Free Wi-Fi</li>
-              </ul>
-              <div className="room-price-pro">₹{room.price} <span>/ 24hrs</span></div>
-              <Link to={`/room/${room.id}`} className="btn-room-pro">VIEW DETAILS</Link>
+              <div className="room-info-pro">
+                <h3>{room.name}</h3>
+                <p>{room.description || 'Comfortable room for your stay'}</p>
+                <ul className="room-features-pro">
+                  <li>👥 {room.capacity || 2} Guests</li>
+                  <li>🛌 {room.beds || 1} {room.beds > 1 ? 'Beds' : 'Bed'}</li>
+                  {room.amenities && room.amenities.slice(0, 3).map((item, index) => (
+                    <li key={index}>✓ {item}</li>
+                  ))}
+                  {room.amenities && room.amenities.length > 3 && (
+                    <li>+{room.amenities.length - 3} more</li>
+                  )}
+                </ul>
+                <p className="room-price-pro">₹{room.price} <span>/ night</span></p>
+                <Link to={`/room/${room.id}`} className="btn-room-pro">
+                  View Details →
+                </Link>
+              </div>
             </div>
-          ))}
-        </div>
+          ))
+        )}
       </div>
     </div>
   );
