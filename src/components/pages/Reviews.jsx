@@ -1,6 +1,7 @@
 // src/components/pages/Reviews.jsx
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getReviews, addReview, listenReviews } from '../../firebase/firestore';
 import toast from 'react-hot-toast';
@@ -13,6 +14,7 @@ const Reviews = () => {
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [submitting, setSubmitting] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
+  const [selectedReview, setSelectedReview] = useState(null);
 
   // ============================================
   // ✅ REAL-TIME REVIEWS LISTENER
@@ -26,7 +28,6 @@ const Reviews = () => {
       setLoading(false);
     });
 
-    // Cleanup listener on unmount
     return () => {
       console.log('🔄 Cleaning up reviews listener...');
       unsubscribe();
@@ -70,6 +71,18 @@ const Reviews = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ============================================
+  // ✅ REVIEW CLICK HANDLER - For mobile
+  // ============================================
+  const handleReviewClick = (review) => {
+    console.log('📱 Review clicked:', review);
+    setSelectedReview(review);
+  };
+
+  const closeModal = () => {
+    setSelectedReview(null);
   };
 
   // ============================================
@@ -166,7 +179,7 @@ const Reviews = () => {
           </div>
         )}
 
-        {/* Reviews List - Real-time */}
+        {/* Reviews List - Clickable for mobile */}
         <div className="reviews-list-pro">
           {reviews.length === 0 ? (
             <p style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
@@ -174,7 +187,12 @@ const Reviews = () => {
             </p>
           ) : (
             reviews.map((r) => (
-              <div key={r.id} className="review-card-pro">
+              <div 
+                key={r.id} 
+                className="review-card-pro"
+                onClick={() => handleReviewClick(r)}
+                style={{ cursor: 'pointer' }}
+              >
                 <div className="review-header-pro">
                   <span className="review-name-pro">👤 {r.userName || r.name}</span>
                   <span className="review-date-pro">
@@ -192,12 +210,45 @@ const Reviews = () => {
                 <div className="review-stars-pro">
                   {renderStars(r.rating)}
                 </div>
-                <p>{r.comment}</p>
+                <p className="review-comment">{r.comment}</p>
+                <div className="review-click-hint">👆 Tap to view full</div>
               </div>
             ))
           )}
         </div>
       </div>
+
+      {/* ============================================ */}
+      {/* ✅ REVIEW DETAIL MODAL - For mobile click */}
+      {/* ============================================ */}
+      {selectedReview && (
+        <div className="review-modal-overlay" onClick={closeModal}>
+          <div className="review-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="review-modal-close" onClick={closeModal}>✕</button>
+            <div className="review-modal-header">
+              <span className="review-modal-name">👤 {selectedReview.userName || selectedReview.name}</span>
+              <span className="review-modal-date">
+                {selectedReview.createdAt || selectedReview.date ? (
+                  new Date(selectedReview.createdAt || selectedReview.date).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                ) : (
+                  'Recent'
+                )}
+              </span>
+            </div>
+            <div className="review-modal-stars">
+              {renderStars(selectedReview.rating)}
+            </div>
+            <p className="review-modal-comment">{selectedReview.comment}</p>
+            <div className="review-modal-footer">
+              <span>⭐ {selectedReview.rating}/5</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
