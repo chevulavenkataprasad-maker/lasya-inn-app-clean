@@ -118,7 +118,7 @@ const Home = () => {
       </section>
 
       {/* ========================================= */}
-      {/* OUR ROOMS & SUITES - WITH IMAGES */}
+      {/* OUR ROOMS & SUITES - WITH AVAILABLE ROOMS, BOOKING, CANCEL */}
       {/* ========================================= */}
       <section className="rooms-section">
         <h2>OUR ROOMS & SUITES</h2>
@@ -136,51 +136,74 @@ const Home = () => {
                 <p>No rooms available yet. Check back soon!</p>
               </div>
             ) : (
-              rooms.map((room) => (
-                <div key={room.id} className="room-card">
-                  <div className="room-image">
-                    {/* ✅ IMAGE DISPLAY - Fixed */}
-                    {room.imageUrl ? (
-                      <img 
-                        src={room.imageUrl} 
-                        alt={room.name}
-                        loading="lazy"
-                        onError={(e) => {
-                          console.log('❌ Image error:', room.imageUrl);
-                          e.target.style.display = 'none';
-                          e.target.parentElement.innerHTML = '🛏️';
-                        }}
-                      />
-                    ) : (
-                      <img 
-                        src="/images/bed.jpeg" 
-                        alt={room.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        loading="lazy"
-                        onError={(e) => {
-                          console.log('❌ Default image error');
-                          e.target.style.display = 'none';
-                          e.target.parentElement.innerHTML = '🛏️';
-                        }}
-                      />
-                    )}
-                    <span className="room-badge">{room.type || 'Standard'}</span>
+              rooms.map((room) => {
+                // Calculate available rooms (mock - replace with actual logic)
+                const availableRooms = room.availableRooms || room.totalRooms || 5;
+                const isAvailable = availableRooms > 0;
+                
+                return (
+                  <div key={room.id} className="room-card">
+                    <div className="room-image">
+                      {room.imageUrl ? (
+                        <img 
+                          src={room.imageUrl} 
+                          alt={room.name}
+                          loading="lazy"
+                          onError={(e) => {
+                            console.log('❌ Image error:', room.imageUrl);
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '🛏️';
+                          }}
+                        />
+                      ) : (
+                        <img 
+                          src="/images/bed.jpeg" 
+                          alt={room.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          loading="lazy"
+                          onError={(e) => {
+                            console.log('❌ Default image error');
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '🛏️';
+                          }}
+                        />
+                      )}
+                      <span className={`room-badge ${isAvailable ? 'available' : 'booked'}`}>
+                        {isAvailable ? '✅ Available' : '❌ Booked'}
+                      </span>
+                    </div>
+                    <h3>{room.name}</h3>
+                    <ul className="room-features">
+                      <li>👥 {room.capacity || 2} Guests</li>
+                      <li>🛌 {room.beds || 1} {room.beds > 1 ? 'Beds' : 'Bed'}</li>
+                      {room.amenities && room.amenities.slice(0, 2).map((item, index) => (
+                        <li key={index}>✓ {item}</li>
+                      ))}
+                      {room.amenities && room.amenities.length > 2 && (
+                        <li>+{room.amenities.length - 2} more</li>
+                      )}
+                    </ul>
+                    <div className="room-availability-info">
+                      <span className={`availability-status ${isAvailable ? 'available' : 'booked'}`}>
+                        {isAvailable ? '🟢' : '🔴'} {availableRooms} rooms available
+                      </span>
+                    </div>
+                    <p className="room-price">₹{room.price} <span>/ Night</span></p>
+                    <Link 
+                      to={isAvailable ? `/room/${room.id}` : '#'} 
+                      className={`btn-book ${!isAvailable ? 'btn-booked' : ''}`}
+                      onClick={(e) => {
+                        if (!isAvailable) {
+                          e.preventDefault();
+                          toast.error('Room is fully booked for these dates');
+                        }
+                      }}
+                    >
+                      {isAvailable ? 'VIEW DETAILS' : 'BOOKED'}
+                    </Link>
                   </div>
-                  <h3>{room.name}</h3>
-                  <ul className="room-features">
-                    <li>👥 {room.capacity || 2} Guests</li>
-                    <li>🛌 {room.beds || 1} {room.beds > 1 ? 'Beds' : 'Bed'}</li>
-                    {room.amenities && room.amenities.slice(0, 2).map((item, index) => (
-                      <li key={index}>✓ {item}</li>
-                    ))}
-                    {room.amenities && room.amenities.length > 2 && (
-                      <li>+{room.amenities.length - 2} more</li>
-                    )}
-                  </ul>
-                  <p className="room-price">₹{room.price} <span>/ Night</span></p>
-                  <Link to={`/room/${room.id}`} className="btn-book">VIEW DETAILS</Link>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
