@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getRooms, getUserBookings, cancelBooking } from '../../firebase/firestore';
+import { getRooms, cancelBooking } from '../../firebase/firestore';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import toast from 'react-hot-toast';
@@ -26,15 +26,16 @@ const Home = () => {
   }, []);
 
   // ============================================
-  // ✅ REAL-TIME LISTENER - FIXED
+  // ✅ REAL-TIME LISTENER - WITH DEBUG
   // ============================================
   useEffect(() => {
     if (!user) {
+      console.log('⚠️ No user, clearing bookings');
       setUserBookings([]);
       return;
     }
 
-    console.log('👤 Setting up real-time listener for user:', user.uid);
+    console.log('👤 Setting up listener for user:', user.uid);
 
     try {
       const bookingsRef = collection(db, 'bookings');
@@ -58,10 +59,7 @@ const Home = () => {
         console.error('❌ Listener error:', error);
       });
 
-      return () => {
-        console.log('🔴 Unsubscribing from listener');
-        unsubscribe();
-      };
+      return () => unsubscribe();
     } catch (error) {
       console.error('❌ Setup listener error:', error);
     }
@@ -82,18 +80,37 @@ const Home = () => {
   };
 
   // ============================================
-  // ✅ GET ACTIVE BOOKINGS
+  // ✅ GET ACTIVE BOOKINGS - WITH DEBUG
   // ============================================
   const getActiveBookings = () => {
-    if (!user || userBookings.length === 0) return [];
+    if (!user) {
+      console.log('⚠️ No user');
+      return [];
+    }
+
+    console.log('👤 Current user UID:', user.uid);
+    console.log('📋 All bookings:', userBookings);
+
+    if (userBookings.length === 0) {
+      console.log('⚠️ No bookings found');
+      return [];
+    }
 
     const active = userBookings.filter(booking => {
+      const isUserBooking = booking.userId === user.uid;
       const isActive = booking.status === 'confirmed' || booking.status === 'pending';
-      console.log(`📋 Booking: ${booking.id}, status: ${booking.status}, active: ${isActive}`);
-      return isActive;
+      
+      console.log(`📋 Booking ${booking.id}:`, {
+        userId: booking.userId,
+        match: isUserBooking,
+        status: booking.status,
+        active: isActive
+      });
+      
+      return isUserBooking && isActive;
     });
 
-    console.log('✅ Active bookings:', active);
+    console.log('✅ Active bookings count:', active.length);
     return active;
   };
 
@@ -103,9 +120,11 @@ const Home = () => {
   const getCancelledBookings = () => {
     if (!user || userBookings.length === 0) return [];
     
-    return userBookings.filter(booking => 
-      booking.status === 'cancelled'
-    );
+    return userBookings.filter(booking => {
+      const isUserBooking = booking.userId === user.uid;
+      const isCancelled = booking.status === 'cancelled';
+      return isUserBooking && isCancelled;
+    });
   };
 
   // ============================================
@@ -130,7 +149,6 @@ const Home = () => {
       const result = await cancelBooking(bookingId);
       if (result.success) {
         toast.success('✅ Booking cancelled successfully');
-        // Listener will auto-update
       }
     } catch (error) {
       console.error('❌ Cancel error:', error);
@@ -139,105 +157,12 @@ const Home = () => {
   };
 
   // ============================================
-  // ✅ RENDER AVAILABLE ROOMS
-  // ============================================
-  const renderAvailableRooms = () => {
-    const availableRooms = getAvailableRooms();
-
-    if (availableRooms.length === 0) {
-      return (
-        <div className="no-rooms-message">
-          <p>🚫 No rooms available at the moment</p>
-          <p style={{ fontSize: '14px', color: '#888', marginTop: '10px' }}>
-            Please check back later or contact admin
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="rooms-grid">
-        {availableRooms.map((room) => {
-          const availableCount = room.availableRooms || room.totalRooms || 0;
-          const isAvailable = availableCount > 0;
-          
-          return (
-            <div key={room.id} className="room-card">
-              <div className="room-image">
-                {room.imageUrl ? (
-                  <img 
-                    src={room.imageUrl} 
-                    alt={room.name}
-                    loading="lazy"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.parentElement.innerHTML = '🛏️';
-                    }}
-                  />
-                ) : (
-                  <img 
-                    src="/images/bed.jpeg" 
-                    alt={room.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    loading="lazy"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.parentElement.innerHTML = '🛏️';
-                    }}
-                  />
-                )}
-                <span className={`room-badge ${isAvailable ? 'available' : 'booked'}`}>
-                  {isAvailable ? '✅ Available' : '❌ Booked'}
-                </span>
-              </div>
-              <h3>{room.name}</h3>
-              <ul className="room-features">
-                <li>👥 {room.capacity || 2} Guests</li>
-                <li>🛌 {room.beds || 1} {room.beds > 1 ? 'Beds' : 'Bed'}</li>
-                {room.amenities && room.amenities.slice(0, 2).map((item, index) => (
-                  <li key={index}>✓ {item}</li>
-                ))}
-                {room.amenities && room.amenities.length > 2 && (
-                  <li>+{room.amenities.length - 2} more</li>
-                )}
-              </ul>
-              <div className="room-availability-info">
-                <span className={`availability-status ${isAvailable ? 'available' : 'booked'}`}>
-                  {isAvailable ? '🟢' : '🔴'} {availableCount} rooms available
-                </span>
-              </div>
-              <p className="room-price">₹{room.price} <span>/ Night</span></p>
-              <Link 
-                to={isAvailable ? `/booking/${room.id}` : '#'} 
-                state={{ 
-                  roomId: room.id,
-                  roomName: room.name,
-                  roomPrice: room.price,
-                  roomType: room.type,
-                  imageUrl: room.image
-                }}
-                className={`btn-book ${!isAvailable ? 'btn-booked' : ''}`}
-                onClick={(e) => {
-                  if (!isAvailable) {
-                    e.preventDefault();
-                    toast.error('Room is fully booked');
-                  }
-                }}
-              >
-                {isAvailable ? 'BOOK NOW' : 'FULLY BOOKED'}
-              </Link>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // ============================================
   // ✅ RENDER BOOKED ROOMS
   // ============================================
   const renderBookedRooms = () => {
     const activeBookings = getActiveBookings();
+
+    console.log('📊 Rendering booked rooms:', activeBookings);
 
     if (activeBookings.length === 0) {
       return (
@@ -380,6 +305,101 @@ const Home = () => {
   };
 
   // ============================================
+  // ✅ RENDER AVAILABLE ROOMS
+  // ============================================
+  const renderAvailableRooms = () => {
+    const availableRooms = getAvailableRooms();
+
+    if (availableRooms.length === 0) {
+      return (
+        <div className="no-rooms-message">
+          <p>🚫 No rooms available at the moment</p>
+          <p style={{ fontSize: '14px', color: '#888', marginTop: '10px' }}>
+            Please check back later or contact admin
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rooms-grid">
+        {availableRooms.map((room) => {
+          const availableCount = room.availableRooms || room.totalRooms || 0;
+          const isAvailable = availableCount > 0;
+          
+          return (
+            <div key={room.id} className="room-card">
+              <div className="room-image">
+                {room.imageUrl ? (
+                  <img 
+                    src={room.imageUrl} 
+                    alt={room.name}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '🛏️';
+                    }}
+                  />
+                ) : (
+                  <img 
+                    src="/images/bed.jpeg" 
+                    alt={room.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '🛏️';
+                    }}
+                  />
+                )}
+                <span className={`room-badge ${isAvailable ? 'available' : 'booked'}`}>
+                  {isAvailable ? '✅ Available' : '❌ Booked'}
+                </span>
+              </div>
+              <h3>{room.name}</h3>
+              <ul className="room-features">
+                <li>👥 {room.capacity || 2} Guests</li>
+                <li>🛌 {room.beds || 1} {room.beds > 1 ? 'Beds' : 'Bed'}</li>
+                {room.amenities && room.amenities.slice(0, 2).map((item, index) => (
+                  <li key={index}>✓ {item}</li>
+                ))}
+                {room.amenities && room.amenities.length > 2 && (
+                  <li>+{room.amenities.length - 2} more</li>
+                )}
+              </ul>
+              <div className="room-availability-info">
+                <span className={`availability-status ${isAvailable ? 'available' : 'booked'}`}>
+                  {isAvailable ? '🟢' : '🔴'} {availableCount} rooms available
+                </span>
+              </div>
+              <p className="room-price">₹{room.price} <span>/ Night</span></p>
+              <Link 
+                to={isAvailable ? `/booking/${room.id}` : '#'} 
+                state={{ 
+                  roomId: room.id,
+                  roomName: room.name,
+                  roomPrice: room.price,
+                  roomType: room.type,
+                  imageUrl: room.image
+                }}
+                className={`btn-book ${!isAvailable ? 'btn-booked' : ''}`}
+                onClick={(e) => {
+                  if (!isAvailable) {
+                    e.preventDefault();
+                    toast.error('Room is fully booked');
+                  }
+                }}
+              >
+                {isAvailable ? 'BOOK NOW' : 'FULLY BOOKED'}
+              </Link>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ============================================
   // ✅ RENDER BASED ON TAB
   // ============================================
   const renderContent = () => {
@@ -395,9 +415,6 @@ const Home = () => {
     }
   };
 
-  // ============================================
-  // ✅ QUICK BOOKING
-  // ============================================
   const handleQuickBooking = () => {
     if (!user) {
       navigate('/login');
@@ -406,12 +423,8 @@ const Home = () => {
     navigate('/booking', { state: { checkIn, checkOut, guests, roomType } });
   };
 
-  // ============================================
-  // ✅ RENDER
-  // ============================================
   return (
     <div className="home-page">
-      
       {/* HERO SECTION */}
       <section className="hero-section">
         <div className="hero-content">
