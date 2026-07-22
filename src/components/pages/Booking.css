@@ -1,0 +1,276 @@
+/* src/components/Booking.css */
+
+/* Payment Section */
+.payment-section-pro {
+  margin-top: 30px;
+  padding: 25px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px solid #4CAF50;
+}
+
+.payment-header-pro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.payment-header-pro h3 {
+  margin: 0;
+  color: #333;
+}
+
+.payment-amount {
+  font-size: 20px;
+  font-weight: bold;
+  color: #4CAF50;
+}
+
+/* Payment Methods Grid */
+.payment-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.payment-method-card {
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #fff;
+}
+
+.payment-method-card:hover {
+  border-color: #2196F3;
+  transform: translateY(-2px);
+}
+
+.payment-method-card.selected {
+  border-color: #2196F3;
+  background: #e3f2fd;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+}
+
+.method-icon {
+  font-size: 28px;
+}
+
+.method-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.method-desc {
+  font-size: 11px;
+  color: #666;
+  margin-top: 2px;
+}
+
+/* Payment Forms */
+.payment-form-pro {
+  padding: 20px;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 15px;
+}
+
+.payment-form-pro h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+/* UPI */
+.upi-options {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.upi-app-btn {
+  padding: 8px 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.upi-app-btn:hover {
+  background: #f0f0f0;
+  border-color: #2196F3;
+}
+
+.upi-input-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+/* Card */
+.card-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-input-group input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.card-row {
+  display: flex;
+  gap: 10px;
+}
+
+.card-row input {
+  flex: 1;
+}
+
+.card-logos {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.card-logos span {
+  padding: 4px 12px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* Bank Grid */
+.bank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.bank-btn {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 13px;
+}
+
+.bank-btn:hover {
+  border-color: #2196F3;
+  background: #f5f5f5;
+}
+
+.bank-btn.selected {
+  border-color: #2196F3;
+  background: #e3f2fd;
+}
+
+/* Wallet */
+.wallet-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wallet-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 16px;
+}
+
+.wallet-btn:hover {
+  border-color: #FF6F00;
+  background: #fff3e0;
+}
+
+/* Pay Button */
+.btn-pay-pro {
+  width: 100%;
+  padding: 14px;
+  background: #4CAF50;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-pay-pro:hover {
+  background: #45a049;
+}
+
+.btn-pay-pro:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.secure-payment {
+  text-align: center;
+  margin-top: 12px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Amount Summary */
+.amount-summary-pro {
+  background: #f0f7ff;
+  border-radius: 10px;
+  padding: 15px 20px;
+}
+
+.amount-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.amount-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+}
+
+.amount-row.total {
+  border-top: 2px solid #4CAF50;
+  padding-top: 10px;
+  margin-top: 5px;
+  font-size: 18px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .payment-methods-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .card-row {
+    flex-direction: column;
+  }
+  
+  .bank-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

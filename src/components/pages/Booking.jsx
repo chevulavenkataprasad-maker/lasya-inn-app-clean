@@ -1,9 +1,13 @@
+// src/components/pages/Booking.jsx
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { addBooking } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
+import { initiatePayment } from '../../services/paymentService';
 import toast from 'react-hot-toast';
+import './Booking.css';
 
 const Booking = () => {
   const { user } = useAuth();
@@ -13,6 +17,26 @@ const Booking = () => {
   const [aadharPreview, setAadharPreview] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
+  // ============================================
+  // PAYMENT STATE - ✅ ఇవి ఉండాలి
+  // ============================================
+  const [showPayment, setShowPayment] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState(null);
+  const [upiId, setUpiId] = useState('');
+  const [cardDetails, setCardDetails] = useState({
+    number: '',
+    expiry: '',
+    cvv: '',
+    name: ''
+  });
+  const [selectedBank, setSelectedBank] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [savedBookingId, setSavedBookingId] = useState(null);
+  const [savedBookingData, setSavedBookingData] = useState(null);
+
+  // ============================================
+  // FORM STATE
+  // ============================================
   const [formData, setFormData] = useState({
     guestName: user?.displayName || '',
     guestEmail: user?.email || '',
@@ -33,9 +57,50 @@ const Booking = () => {
     roomType: 'ac'
   });
 
+  // ============================================
+  // PAYMENT METHODS
+  // ============================================
+  const paymentMethods = [
+    { id: 'upi', name: 'UPI', icon: '📱', desc: 'Google Pay, PhonePe, Paytm' },
+    { id: 'card', name: 'Card', icon: '💳', desc: 'Credit/Debit Card' },
+    { id: 'netbanking', name: 'Net Banking', icon: '🏦', desc: 'All major banks' },
+    { id: 'wallet', name: 'Wallet', icon: '👛', desc: 'PhonePe, Paytm, Amazon' }
+  ];
+
+  const banks = [
+    { id: 'sbi', name: 'SBI' },
+    { id: 'hdfc', name: 'HDFC' },
+    { id: 'icici', name: 'ICICI' },
+    { id: 'axis', name: 'Axis' },
+    { id: 'kotak', name: 'Kotak' },
+    { id: 'yes', name: 'Yes Bank' }
+  ];
+
+  // ============================================
+  // CALCULATE TOTAL
+  // ============================================
+  const calculateTotal = () => {
+    if (formData.checkInDate && formData.checkOutDate) {
+      const checkIn = new Date(formData.checkInDate);
+      const checkOut = new Date(formData.checkOutDate);
+      const days = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+      return days > 0 ? days * (formData.roomPrice || 1200) : formData.roomPrice || 1200;
+    }
+    return formData.roomPrice || 1200;
+  };
+
+  const totalAmount = calculateTotal();
+  const totalDays = formData.checkInDate && formData.checkOutDate 
+    ? Math.ceil((new Date(formData.checkOutDate) - new Date(formData.checkInDate)) / (1000 * 60 * 60 * 24))
+    : 1;
+
+  // ============================================
+  // HANDLE FORM SUBMIT
+  // ============================================
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validations
     if (!formData.guestName) {
       toast.error('Please enter your full name');
       return;
@@ -82,11 +147,6 @@ const Booking = () => {
         aadharUrl = await uploadFileToS3(aadharFile, 'aadhar');
       }
 
-      const checkIn = new Date(formData.checkInDate);
-      const checkOut = new Date(formData.checkOutDate);
-      const days = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-      const totalPrice = days * (formData.roomPrice || 1200);
-
       const bookingData = {
         userId: user.uid,
         userName: user.displayName || 'Guest',
@@ -109,24 +169,23 @@ const Booking = () => {
         checkOutTime: formData.checkOutTime,
         guests: formData.guests,
         specialRequests: formData.specialRequests,
-        totalDays: days,
-        totalPrice: totalPrice,
+        totalDays: totalDays,
+        totalPrice: totalAmount,
         status: 'pending',
+        paymentStatus: 'pending',
         createdAt: new Date().toISOString()
       };
 
-      console.log('📝 Saving booking:', bookingData);
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
-      
-      toast.success('🎉 Booking Confirmed!');
-      navigate('/booking-success', { 
-        state: { 
-          bookingId, 
-          booking: bookingData 
-        }
-      });
-      
+
+      // ✅ IMPORTANT: Payment section చూపించడానికి
+      setSavedBookingId(bookingId);
+      setSavedBookingData(bookingData);
+      setShowPayment(true);  // <<<< ఇది ఉండాలి!
+
+      toast.success('📋 Booking details saved! Please complete payment.');
+
     } catch (error) {
       console.error('❌ Booking error:', error);
       toast.error('Booking failed: ' + error.message);
@@ -135,6 +194,61 @@ const Booking = () => {
     }
   };
 
+  // ============================================
+  // HANDLE PAYMENT
+  // ============================================
+  const handlePayment = async () => {
+    if (!selectedMethod) {
+      toast.error('Please select a payment method');
+      return;
+    }
+
+    if (selectedMethod === 'upi' && !upiId) {
+      toast.error('Please enter UPI ID');
+      return;
+    }
+
+    setPaymentLoading(true);
+
+    try {
+      const paymentData = {
+        method: selectedMethod,
+        bookingId: savedBookingId,
+        amount: totalAmount,
+        guestName: formData.guestName,
+        guestPhone: formData.guestPhone,
+        guestEmail: formData.guestEmail,
+        upiId: selectedMethod === 'upi' ? upiId : undefined,
+        cardDetails: selectedMethod === 'card' ? cardDetails : undefined,
+        bank: selectedMethod === 'netbanking' ? selectedBank : undefined
+      };
+
+      const result = await initiatePayment(paymentData);
+
+      if (result.success) {
+        toast.success('✅ Payment successful! Booking confirmed.');
+        navigate('/booking-success', {
+          state: {
+            bookingId: savedBookingId,
+            booking: savedBookingData,
+            paymentId: result.paymentId
+          }
+        });
+      } else {
+        toast.error(result.message || 'Payment failed. Please try again.');
+      }
+
+    } catch (error) {
+      console.error('❌ Payment error:', error);
+      toast.error('Payment failed: ' + error.message);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  // ============================================
+  // AADHAR UPLOAD
+  // ============================================
   const handleAadharUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -151,6 +265,173 @@ const Booking = () => {
     }
   };
 
+  // ============================================
+  // RENDER PAYMENT SECTION
+  // ============================================
+  const renderPaymentSection = () => {
+    // ✅ showPayment true అయితే మాత్రమే render అవుతుంది
+    if (!showPayment) return null;
+
+    console.log('✅ Payment section rendering...'); // Debug
+
+    return (
+      <div className="payment-section-pro">
+        <div className="payment-header-pro">
+          <h3>💳 Complete Payment</h3>
+          <p className="payment-amount">Total: ₹{totalAmount}</p>
+        </div>
+
+        {/* Payment Methods */}
+        <div className="payment-methods-grid">
+          {paymentMethods.map((method) => (
+            <div
+              key={method.id}
+              className={`payment-method-card ${selectedMethod === method.id ? 'selected' : ''}`}
+              onClick={() => setSelectedMethod(method.id)}
+            >
+              <div className="method-icon">{method.icon}</div>
+              <div className="method-name">{method.name}</div>
+              <div className="method-desc">{method.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* UPI */}
+        {selectedMethod === 'upi' && (
+          <div className="payment-form-pro">
+            <h4>📱 UPI Payment</h4>
+            <div className="upi-options">
+              <button type="button" className="upi-app-btn" onClick={() => setUpiId('yourname@paytm')}>
+                Paytm
+              </button>
+              <button type="button" className="upi-app-btn" onClick={() => setUpiId('yourname@okhdfcbank')}>
+                Google Pay
+              </button>
+              <button type="button" className="upi-app-btn" onClick={() => setUpiId('yourname@ybl')}>
+                PhonePe
+              </button>
+            </div>
+            <div className="upi-input-group">
+              <input
+                type="text"
+                placeholder="Enter UPI ID (e.g., name@upi)"
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Card */}
+        {selectedMethod === 'card' && (
+          <div className="payment-form-pro">
+            <h4>💳 Card Payment</h4>
+            <div className="card-input-group">
+              <input
+                type="text"
+                placeholder="Card Number"
+                value={cardDetails.number}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '');
+                  const formatted = value.replace(/(.{4})/g, '$1 ').trim();
+                  setCardDetails({...cardDetails, number: formatted});
+                }}
+                maxLength="19"
+              />
+              <div className="card-row">
+                <input
+                  type="text"
+                  placeholder="MM/YY"
+                  value={cardDetails.expiry}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    if (value.length <= 4) {
+                      const formatted = value.length > 2 ? `${value.slice(0,2)}/${value.slice(2)}` : value;
+                      setCardDetails({...cardDetails, expiry: formatted});
+                    }
+                  }}
+                  maxLength="5"
+                />
+                <input
+                  type="password"
+                  placeholder="CVV"
+                  value={cardDetails.cvv}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    if (value.length <= 4) {
+                      setCardDetails({...cardDetails, cvv: value});
+                    }
+                  }}
+                  maxLength="4"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Cardholder Name"
+                value={cardDetails.name}
+                onChange={(e) => setCardDetails({...cardDetails, name: e.target.value})}
+              />
+            </div>
+            <div className="card-logos">
+              <span>Visa</span>
+              <span>Mastercard</span>
+              <span>RuPay</span>
+            </div>
+          </div>
+        )}
+
+        {/* NetBanking */}
+        {selectedMethod === 'netbanking' && (
+          <div className="payment-form-pro">
+            <h4>🏦 Net Banking</h4>
+            <div className="bank-grid">
+              {banks.map((bank) => (
+                <button
+                  key={bank.id}
+                  type="button"
+                  className={`bank-btn ${selectedBank === bank.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedBank(bank.id)}
+                >
+                  {bank.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Wallet */}
+        {selectedMethod === 'wallet' && (
+          <div className="payment-form-pro">
+            <h4>👛 Wallet Payment</h4>
+            <div className="wallet-options">
+              <button type="button" className="wallet-btn" onClick={() => setSelectedMethod('wallet')}>
+                <span>📱</span> PhonePe Wallet
+              </button>
+              <button type="button" className="wallet-btn" onClick={() => setSelectedMethod('wallet')}>
+                <span>📱</span> Paytm Wallet
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Pay Button */}
+        <button
+          type="button"
+          className="btn-pay-pro"
+          onClick={handlePayment}
+          disabled={paymentLoading}
+        >
+          {paymentLoading ? 'Processing...' : `Pay ₹${totalAmount}`}
+        </button>
+
+        <p className="secure-payment">🔒 Secure & Encrypted Payment</p>
+      </div>
+    );
+  };
+
+  // ============================================
+  // RENDER
+  // ============================================
   return (
     <div className="booking-page-pro">
       <div className="booking-hero-pro">
@@ -370,6 +651,25 @@ const Booking = () => {
             />
           </div>
 
+          {/* Amount Summary */}
+          <div className="booking-section-pro amount-summary-pro">
+            <h3>💰 Booking Summary</h3>
+            <div className="amount-details">
+              <div className="amount-row">
+                <span>Room: {formData.roomName}</span>
+                <span>₹{formData.roomPrice}/night</span>
+              </div>
+              <div className="amount-row">
+                <span>Total Days: {totalDays}</span>
+                <span>₹{totalAmount}</span>
+              </div>
+              <div className="amount-row total">
+                <span><strong>Total Amount</strong></span>
+                <span><strong>₹{totalAmount}</strong></span>
+              </div>
+            </div>
+          </div>
+
           {/* Terms & Submit */}
           <div className="booking-actions-pro">
             <div className="terms-pro">
@@ -389,10 +689,16 @@ const Booking = () => {
               className="btn-submit-pro"
               disabled={submitting}
             >
-              {submitting ? 'Processing...' : '💰 Confirm Booking'}
+              {submitting ? 'Processing...' : '💰 Proceed to Payment'}
             </button>
           </div>
         </form>
+
+        {/* ============================================ */}
+        {/* ✅ PAYMENT SECTION - ఇది showPayment true అయితే కనిపిస్తుంది */}
+        {/* ============================================ */}
+        {renderPaymentSection()}
+        
       </div>
     </div>
   );
