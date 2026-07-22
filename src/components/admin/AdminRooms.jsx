@@ -20,7 +20,9 @@ const AdminRooms = () => {
     guests: 2,
     bed: '1 King Bed',
     description: '',
-    amenities: ''
+    amenities: '',
+    totalRooms: '',      // ✅ ADDED
+    availableRooms: ''   // ✅ ADDED - Important for Available Rooms
   });
 
   useEffect(() => {
@@ -35,8 +37,8 @@ const AdminRooms = () => {
         setRooms(data);
       } else {
         setRooms([
-          { id: '1', name: 'Deluxe AC Room', type: 'ac', price: 1200, guests: 2, bed: '1 King Bed' },
-          { id: '2', name: 'Deluxe Non-AC Room', type: 'non-ac', price: 800, guests: 2, bed: '1 King Bed' }
+          { id: '1', name: 'Deluxe AC Room', type: 'ac', price: 1200, guests: 2, bed: '1 King Bed', totalRooms: 5, availableRooms: 5 },
+          { id: '2', name: 'Deluxe Non-AC Room', type: 'non-ac', price: 800, guests: 2, bed: '1 King Bed', totalRooms: 3, availableRooms: 3 }
         ]);
       }
     } catch (error) {
@@ -60,14 +62,27 @@ const AdminRooms = () => {
     }
   };
 
+  // ============================================
+  // ✅ ADD ROOM - With availableRooms
+  // ============================================
   const handleAdd = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    
     try {
       let imageUrl = '';
       if (imageFile) {
         imageUrl = await uploadFileToS3(imageFile, 'rooms');
       }
+      
+      // ✅ Check availableRooms
+      const availableRooms = Number(formData.availableRooms) || Number(formData.totalRooms) || 0;
+      if (availableRooms <= 0) {
+        toast.error('Available rooms must be greater than 0');
+        setSubmitting(false);
+        return;
+      }
+      
       const roomData = {
         name: formData.name,
         type: formData.type,
@@ -77,42 +92,62 @@ const AdminRooms = () => {
         description: formData.description || '',
         amenities: formData.amenities ? formData.amenities.split(',').map(item => item.trim()) : [],
         image: imageUrl,
+        totalRooms: Number(formData.totalRooms) || availableRooms,
+        availableRooms: availableRooms, // ✅ MUST BE > 0
+        isAvailable: true,
         createdAt: new Date().toISOString()
       };
+      
+      console.log('📝 Adding room:', roomData);
+      
       await addRoom(roomData);
       toast.success('✅ Room added successfully!');
       resetForm();
       await fetchRooms();
+      
     } catch (error) {
-      toast.error('Failed to add room');
+      console.error('❌ Add room error:', error);
+      toast.error('Failed to add room: ' + error.message);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ============================================
+  // ✅ EDIT ROOM - With availableRooms
+  // ============================================
   const handleEdit = (room) => {
     setEditingRoom(room);
     setFormData({
-      name: room.name,
-      type: room.type,
-      price: room.price,
-      guests: room.guests,
+      name: room.name || '',
+      type: room.type || 'ac',
+      price: room.price || '',
+      guests: room.guests || 2,
       bed: room.bed || '1 King Bed',
       description: room.description || '',
-      amenities: room.amenities ? room.amenities.join(', ') : ''
+      amenities: room.amenities ? room.amenities.join(', ') : '',
+      totalRooms: room.totalRooms || '',
+      availableRooms: room.availableRooms || '' // ✅ ADDED
     });
     setImagePreview(room.image || '');
     setShowForm(true);
   };
 
+  // ============================================
+  // ✅ UPDATE ROOM - With availableRooms
+  // ============================================
   const handleUpdate = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    
     try {
       let imageUrl = editingRoom?.image || '';
       if (imageFile) {
         imageUrl = await uploadFileToS3(imageFile, 'rooms');
       }
+      
+      const availableRooms = Number(formData.availableRooms) || Number(formData.totalRooms) || 0;
+      
       const roomData = {
         name: formData.name,
         type: formData.type,
@@ -121,13 +156,20 @@ const AdminRooms = () => {
         bed: formData.bed,
         description: formData.description || '',
         amenities: formData.amenities ? formData.amenities.split(',').map(item => item.trim()) : [],
-        image: imageUrl
+        image: imageUrl,
+        totalRooms: Number(formData.totalRooms) || availableRooms,
+        availableRooms: availableRooms,
+        isAvailable: availableRooms > 0,
+        updatedAt: new Date().toISOString()
       };
+      
       await updateRoom(editingRoom.id, roomData);
       toast.success('✅ Room updated successfully!');
       resetForm();
       await fetchRooms();
+      
     } catch (error) {
+      console.error('❌ Update error:', error);
       toast.error('Failed to update room');
     } finally {
       setSubmitting(false);
@@ -155,7 +197,9 @@ const AdminRooms = () => {
       guests: 2,
       bed: '1 King Bed',
       description: '',
-      amenities: ''
+      amenities: '',
+      totalRooms: '',
+      availableRooms: ''
     });
     setImageFile(null);
     setImagePreview('');
@@ -193,41 +237,117 @@ const AdminRooms = () => {
             <div className="form-grid-pro">
               <div className="form-group-pro">
                 <label>Room Name <span className="required">*</span></label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required placeholder="e.g., Deluxe AC Room" />
+                <input 
+                  type="text" 
+                  value={formData.name} 
+                  onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                  required 
+                  placeholder="e.g., Deluxe AC Room" 
+                />
               </div>
+              
               <div className="form-group-pro">
                 <label>Room Type <span className="required">*</span></label>
-                <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
+                <select 
+                  value={formData.type} 
+                  onChange={(e) => setFormData({...formData, type: e.target.value})}
+                >
                   <option value="ac">AC Room</option>
                   <option value="non-ac">Non-AC Room</option>
                 </select>
               </div>
+              
               <div className="form-group-pro">
                 <label>Price per Night <span className="required">*</span></label>
-                <input type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} required placeholder="e.g., 1200" />
+                <input 
+                  type="number" 
+                  value={formData.price} 
+                  onChange={(e) => setFormData({...formData, price: e.target.value})} 
+                  required 
+                  placeholder="e.g., 1200" 
+                />
               </div>
+              
               <div className="form-group-pro">
                 <label>Guests <span className="required">*</span></label>
-                <input type="number" value={formData.guests} onChange={(e) => setFormData({...formData, guests: Number(e.target.value)})} min="1" max="4" required />
+                <input 
+                  type="number" 
+                  value={formData.guests} 
+                  onChange={(e) => setFormData({...formData, guests: Number(e.target.value)})} 
+                  min="1" 
+                  max="4" 
+                  required 
+                />
               </div>
+              
               <div className="form-group-pro">
                 <label>Bed Type</label>
-                <input type="text" value={formData.bed} onChange={(e) => setFormData({...formData, bed: e.target.value})} placeholder="e.g., 1 King Bed" />
+                <input 
+                  type="text" 
+                  value={formData.bed} 
+                  onChange={(e) => setFormData({...formData, bed: e.target.value})} 
+                  placeholder="e.g., 1 King Bed" 
+                />
               </div>
+
+              {/* ✅ TOTAL ROOMS - ADDED */}
+              <div className="form-group-pro">
+                <label>Total Rooms <span className="required">*</span></label>
+                <input 
+                  type="number" 
+                  value={formData.totalRooms} 
+                  onChange={(e) => setFormData({...formData, totalRooms: e.target.value})} 
+                  required 
+                  min="1" 
+                  placeholder="e.g., 5" 
+                />
+              </div>
+
+              {/* ✅ AVAILABLE ROOMS - ADDED (IMPORTANT) */}
+              <div className="form-group-pro" style={{ border: '2px solid #4CAF50', borderRadius: '8px', padding: '10px' }}>
+                <label style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                  Available Rooms <span className="required">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  value={formData.availableRooms} 
+                  onChange={(e) => setFormData({...formData, availableRooms: e.target.value})} 
+                  required 
+                  min="1" 
+                  placeholder="e.g., 5" 
+                />
+                <small style={{ color: '#4CAF50', display: 'block', marginTop: '5px' }}>
+                  ⚠️ Must be greater than 0 to show in <strong>Available Rooms</strong> on Home page
+                </small>
+              </div>
+              
               <div className="form-group-pro">
                 <label>Image</label>
                 <input type="file" accept="image/*" onChange={handleImageChange} />
                 {imagePreview && <img src={imagePreview} alt="Preview" className="image-preview-pro" />}
               </div>
+              
               <div className="form-group-pro full-width">
                 <label>Amenities (comma separated)</label>
-                <input type="text" value={formData.amenities} onChange={(e) => setFormData({...formData, amenities: e.target.value})} placeholder="e.g., TV, Free Wi-Fi, Room Service" />
+                <input 
+                  type="text" 
+                  value={formData.amenities} 
+                  onChange={(e) => setFormData({...formData, amenities: e.target.value})} 
+                  placeholder="e.g., TV, Free Wi-Fi, Room Service" 
+                />
               </div>
+              
               <div className="form-group-pro full-width">
                 <label>Description</label>
-                <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} rows="3" placeholder="Room description..." />
+                <textarea 
+                  value={formData.description} 
+                  onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                  rows="3" 
+                  placeholder="Room description..." 
+                />
               </div>
             </div>
+            
             <button type="submit" className="btn-save-pro" disabled={submitting}>
               {submitting ? 'Saving...' : editingRoom ? '💾 Update Room' : '➕ Add Room'}
             </button>
@@ -244,6 +364,9 @@ const AdminRooms = () => {
               <th>Type</th>
               <th>Price</th>
               <th>Guests</th>
+              <th>Total</th>
+              <th>Available</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -261,6 +384,20 @@ const AdminRooms = () => {
                 <td>{room.type === 'ac' ? '❄️ AC' : '🌬️ Non-AC'}</td>
                 <td>₹{room.price}</td>
                 <td>{room.guests}</td>
+                <td>{room.totalRooms || '-'}</td>
+                <td>
+                  <span style={{ 
+                    color: (room.availableRooms || 0) > 0 ? '#4CAF50' : '#f44336',
+                    fontWeight: 'bold'
+                  }}>
+                    {room.availableRooms || 0}
+                  </span>
+                </td>
+                <td>
+                  <span className={`status-badge ${(room.availableRooms || 0) > 0 ? 'available' : 'booked'}`}>
+                    {(room.availableRooms || 0) > 0 ? '✅ Available' : '❌ Booked'}
+                  </span>
+                </td>
                 <td>
                   <button className="btn-edit-pro" onClick={() => handleEdit(room)}>✏️ Edit</button>
                   <button className="btn-delete-pro" onClick={() => handleDelete(room.id)}>🗑️ Delete</button>
