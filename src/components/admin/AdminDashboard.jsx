@@ -1,3 +1,5 @@
+// src/components/admin/AdminDashboard.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRooms, getAllBookings, deleteBooking } from '../../firebase/firestore';
@@ -35,12 +37,34 @@ const AdminDashboard = () => {
     fetchStats();
   }, []);
 
+  // ============================================
+  // ✅ FETCH STATS WITH ERROR HANDLING
+  // ============================================
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const rooms = await getRooms();
-      const bookings = await getAllBookings();
       
+      console.log('📊 Fetching rooms...');
+      let rooms = [];
+      try {
+        rooms = await getRooms();
+        console.log('✅ Rooms fetched:', rooms.length);
+      } catch (roomError) {
+        console.error('❌ Rooms fetch error:', roomError);
+        toast.error('Failed to load rooms: ' + roomError.message);
+      }
+      
+      console.log('📊 Fetching bookings...');
+      let bookings = [];
+      try {
+        bookings = await getAllBookings();
+        console.log('✅ Bookings fetched:', bookings.length);
+      } catch (bookingError) {
+        console.error('❌ Bookings fetch error:', bookingError);
+        toast.error('Failed to load bookings: ' + bookingError.message);
+      }
+      
+      // ✅ Calculate stats safely
       const pending = bookings?.filter(b => b?.status === 'pending') || [];
       const confirmed = bookings?.filter(b => b?.status === 'confirmed') || [];
       const cancelled = bookings?.filter(b => b?.status === 'cancelled') || [];
@@ -55,9 +79,10 @@ const AdminDashboard = () => {
         totalRevenue: totalRevenue
       });
       setRecentBookings(bookings?.slice(0, 5) || []);
+      
     } catch (error) {
-      console.error('❌ Error:', error);
-      toast.error('Failed to load data');
+      console.error('❌ General error:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -124,6 +149,9 @@ const AdminDashboard = () => {
               borderRadius: '12px',
               objectFit: 'cover',
               border: '2px solid #e0e0e0'
+            }}
+            onError={(e) => {
+              e.target.style.display = 'none';
             }}
           />
           
