@@ -420,6 +420,7 @@ const Home = () => {
       navigate('/login');
       return;
     }
+    // ✅ Quick booking with room selection
     navigate('/booking', { state: { checkIn, checkOut, guests, roomType } });
   };
 
