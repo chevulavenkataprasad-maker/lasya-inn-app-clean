@@ -1,3 +1,5 @@
+// src/components/admin/AdminRooms.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getRooms, addRoom, updateRoom, deleteRoom } from '../../firebase/firestore';
@@ -21,8 +23,8 @@ const AdminRooms = () => {
     bed: '1 King Bed',
     description: '',
     amenities: '',
-    totalRooms: '',      // ✅ ADDED
-    availableRooms: ''   // ✅ ADDED - Important for Available Rooms
+    totalRooms: '',
+    availableRooms: ''
   });
 
   useEffect(() => {
@@ -93,7 +95,7 @@ const AdminRooms = () => {
         amenities: formData.amenities ? formData.amenities.split(',').map(item => item.trim()) : [],
         image: imageUrl,
         totalRooms: Number(formData.totalRooms) || availableRooms,
-        availableRooms: availableRooms, // ✅ MUST BE > 0
+        availableRooms: availableRooms,
         isAvailable: true,
         createdAt: new Date().toISOString()
       };
@@ -127,14 +129,14 @@ const AdminRooms = () => {
       description: room.description || '',
       amenities: room.amenities ? room.amenities.join(', ') : '',
       totalRooms: room.totalRooms || '',
-      availableRooms: room.availableRooms || '' // ✅ ADDED
+      availableRooms: room.availableRooms || 0  // ✅ Set to 0 if not available
     });
     setImagePreview(room.image || '');
     setShowForm(true);
   };
 
   // ============================================
-  // ✅ UPDATE ROOM - With availableRooms
+  // ✅ UPDATE ROOM - Admin updates availableRooms
   // ============================================
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -146,7 +148,7 @@ const AdminRooms = () => {
         imageUrl = await uploadFileToS3(imageFile, 'rooms');
       }
       
-      const availableRooms = Number(formData.availableRooms) || Number(formData.totalRooms) || 0;
+      const availableRooms = Number(formData.availableRooms) || 0;
       
       const roomData = {
         name: formData.name,
@@ -159,12 +161,19 @@ const AdminRooms = () => {
         image: imageUrl,
         totalRooms: Number(formData.totalRooms) || availableRooms,
         availableRooms: availableRooms,
-        isAvailable: availableRooms > 0,
+        isAvailable: availableRooms > 0,  // ✅ Auto update based on availableRooms
         updatedAt: new Date().toISOString()
       };
       
       await updateRoom(editingRoom.id, roomData);
-      toast.success('✅ Room updated successfully!');
+      
+      // ✅ Show toast with availability status
+      if (availableRooms > 0) {
+        toast.success(`✅ Room updated! ${availableRooms} rooms available`);
+      } else {
+        toast.warning(`⚠️ Room set to 0 - Not available for booking`);
+      }
+      
       resetForm();
       await fetchRooms();
       
@@ -290,7 +299,7 @@ const AdminRooms = () => {
                 />
               </div>
 
-              {/* ✅ TOTAL ROOMS - ADDED */}
+              {/* ✅ TOTAL ROOMS */}
               <div className="form-group-pro">
                 <label>Total Rooms <span className="required">*</span></label>
                 <input 
@@ -303,7 +312,7 @@ const AdminRooms = () => {
                 />
               </div>
 
-              {/* ✅ AVAILABLE ROOMS - ADDED (IMPORTANT) */}
+              {/* ✅ AVAILABLE ROOMS - Admin sets this */}
               <div className="form-group-pro" style={{ border: '2px solid #4CAF50', borderRadius: '8px', padding: '10px' }}>
                 <label style={{ color: '#4CAF50', fontWeight: 'bold' }}>
                   Available Rooms <span className="required">*</span>
@@ -313,11 +322,11 @@ const AdminRooms = () => {
                   value={formData.availableRooms} 
                   onChange={(e) => setFormData({...formData, availableRooms: e.target.value})} 
                   required 
-                  min="1" 
+                  min="0" 
                   placeholder="e.g., 5" 
                 />
                 <small style={{ color: '#4CAF50', display: 'block', marginTop: '5px' }}>
-                  ⚠️ Must be greater than 0 to show in <strong>Available Rooms</strong> on Home page
+                  ⚠️ Set to <strong>0</strong> to hide from Available Rooms
                 </small>
               </div>
               
@@ -371,39 +380,44 @@ const AdminRooms = () => {
             </tr>
           </thead>
           <tbody>
-            {rooms.map((room) => (
-              <tr key={room.id}>
-                <td>
-                  {room.image ? (
-                    <img src={room.image} alt={room.name} className="table-image-pro" />
-                  ) : (
-                    <span className="table-icon-pro">🛏️</span>
-                  )}
-                </td>
-                <td><strong>{room.name}</strong></td>
-                <td>{room.type === 'ac' ? '❄️ AC' : '🌬️ Non-AC'}</td>
-                <td>₹{room.price}</td>
-                <td>{room.guests}</td>
-                <td>{room.totalRooms || '-'}</td>
-                <td>
-                  <span style={{ 
-                    color: (room.availableRooms || 0) > 0 ? '#4CAF50' : '#f44336',
-                    fontWeight: 'bold'
-                  }}>
-                    {room.availableRooms || 0}
-                  </span>
-                </td>
-                <td>
-                  <span className={`status-badge ${(room.availableRooms || 0) > 0 ? 'available' : 'booked'}`}>
-                    {(room.availableRooms || 0) > 0 ? '✅ Available' : '❌ Booked'}
-                  </span>
-                </td>
-                <td>
-                  <button className="btn-edit-pro" onClick={() => handleEdit(room)}>✏️ Edit</button>
-                  <button className="btn-delete-pro" onClick={() => handleDelete(room.id)}>🗑️ Delete</button>
-                </td>
-              </tr>
-            ))}
+            {rooms.map((room) => {
+              const availableCount = room.availableRooms || 0;
+              const isAvailable = availableCount > 0;
+              
+              return (
+                <tr key={room.id}>
+                  <td>
+                    {room.image ? (
+                      <img src={room.image} alt={room.name} className="table-image-pro" />
+                    ) : (
+                      <span className="table-icon-pro">🛏️</span>
+                    )}
+                  </td>
+                  <td><strong>{room.name}</strong></td>
+                  <td>{room.type === 'ac' ? '❄️ AC' : '🌬️ Non-AC'}</td>
+                  <td>₹{room.price}</td>
+                  <td>{room.guests}</td>
+                  <td>{room.totalRooms || '-'}</td>
+                  <td>
+                    <span style={{ 
+                      color: isAvailable ? '#4CAF50' : '#f44336',
+                      fontWeight: 'bold'
+                    }}>
+                      {availableCount}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`status-badge ${isAvailable ? 'available' : 'booked'}`}>
+                      {isAvailable ? '✅ Available' : '❌ Booked'}
+                    </span>
+                  </td>
+                  <td>
+                    <button className="btn-edit-pro" onClick={() => handleEdit(room)}>✏️ Edit</button>
+                    <button className="btn-delete-pro" onClick={() => handleDelete(room.id)}>🗑️ Delete</button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

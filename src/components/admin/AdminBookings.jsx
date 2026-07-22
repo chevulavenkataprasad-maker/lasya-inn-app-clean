@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getAllBookings, updateBookingStatus, deleteBooking } from '../../firebase/firestore';
+import { getAllBookings, updateBookingStatus, deleteBooking, updateRoom, getRoom } from '../../firebase/firestore';
 import toast from 'react-hot-toast';
 import './AdminBookings.css';
 
@@ -37,11 +37,15 @@ const AdminBookings = () => {
   };
 
   // ============================================
-  // ✅ ADMIN ACCEPT BOOKING
+  // ✅ ADMIN ACCEPT BOOKING - Update room availability
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
+      // 1. Update booking status
       await updateBookingStatus(bookingId, 'confirmed');
+      
+      // 2. Room availability already decreased when booking was made
+      // No need to decrease again
       
       toast.success(
         (t) => (
@@ -62,7 +66,7 @@ const AdminBookings = () => {
   };
 
   // ============================================
-  // ✅ ADMIN CANCEL BOOKING
+  // ✅ ADMIN CANCEL BOOKING - NO RESTORE (Admin must update manually)
   // ============================================
   const handleCancelBooking = async (bookingId, bookingData) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
@@ -70,6 +74,7 @@ const AdminBookings = () => {
     }
 
     try {
+      // ✅ Only update booking status - NO room restore
       await updateBookingStatus(bookingId, 'cancelled');
       
       toast.error(
@@ -77,6 +82,7 @@ const AdminBookings = () => {
           <div>
             <div><strong>❌ Booking Cancelled</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
+            <div>⚠️ Room availability must be updated manually via Edit Room</div>
           </div>
         ),
         { duration: 4000 }
