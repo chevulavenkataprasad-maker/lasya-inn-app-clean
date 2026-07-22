@@ -28,6 +28,7 @@ const Home = () => {
       setLoading(true);
       
       const roomsData = await getRooms();
+      console.log('📊 All rooms from Firestore:', roomsData); // ✅ Debug
       setRooms(roomsData || []);
       
       if (user) {
@@ -68,11 +69,16 @@ const Home = () => {
     }
   };
 
+  // ============================================
+  // GET AVAILABLE ROOMS - Debug version
+  // ============================================
   const getAvailableRooms = () => {
-    return rooms.filter(room => {
-      const available = room.availableRooms || room.totalRooms || 0;
-      return available > 0;
+    const available = rooms.filter(room => {
+      const availableCount = room.availableRooms || room.totalRooms || 0;
+      return availableCount > 0;
     });
+    console.log('✅ Available rooms:', available); // ✅ Debug
+    return available;
   };
 
   const getBookedRooms = () => {
@@ -90,7 +96,7 @@ const Home = () => {
   };
 
   // ============================================
-  // RENDER AVAILABLE ROOMS - Direct Display
+  // RENDER AVAILABLE ROOMS
   // ============================================
   const renderAvailableRooms = () => {
     const availableRooms = getAvailableRooms();
@@ -99,6 +105,9 @@ const Home = () => {
       return (
         <div className="no-rooms-message">
           <p>🚫 No rooms available at the moment</p>
+          <p style={{ fontSize: '14px', color: '#888', marginTop: '10px' }}>
+            Please check back later or contact admin
+          </p>
         </div>
       );
     }
