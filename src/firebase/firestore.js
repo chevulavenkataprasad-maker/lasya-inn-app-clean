@@ -13,7 +13,7 @@ import {
   where,
   orderBy,
   setDoc,
-  onSnapshot  // ✅ ADDED for real-time
+  onSnapshot
 } from 'firebase/firestore';
 
 // Collections
@@ -182,6 +182,42 @@ export const getBooking = async (id) => {
 };
 
 // ============================================
+// ✅ CANCEL BOOKING - ADDED
+// ============================================
+export const cancelBooking = async (bookingId) => {
+  try {
+    const bookingRef = doc(db, 'bookings', bookingId);
+    const snapshot = await getDoc(bookingRef);
+    
+    if (!snapshot.exists()) {
+      throw new Error('Booking not found');
+    }
+    
+    const booking = snapshot.data();
+    
+    if (booking.status === 'cancelled') {
+      throw new Error('Booking already cancelled');
+    }
+    
+    if (booking.status === 'completed') {
+      throw new Error('Cannot cancel completed booking');
+    }
+    
+    await updateDoc(bookingRef, {
+      status: 'cancelled',
+      cancelledAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    
+    console.log('✅ Booking cancelled:', bookingId);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error cancelling booking:', error);
+    throw error;
+  }
+};
+
+// ============================================
 // REVIEWS FUNCTIONS
 // ============================================
 
@@ -217,7 +253,7 @@ export const getReviews = async () => {
   }
 };
 
-// ✅ REAL-TIME REVIEWS LISTENER - ADDED
+// Real-time Reviews Listener
 export const listenReviews = (callback) => {
   const q = query(reviewsCollection, orderBy('createdAt', 'desc'));
   return onSnapshot(q, (snapshot) => {
