@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { addBooking, updateBookingStatus } from '../../firebase/firestore';
+import { addBooking } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
 import { initiatePayment } from '../../services/paymentService';
 import toast from 'react-hot-toast';
@@ -221,7 +221,7 @@ const Booking = () => {
   };
 
   // ============================================
-  // HANDLE PAYMENT
+  // ✅ HANDLE PAYMENT - FIXED (No auto-confirm)
   // ============================================
   const handlePayment = async () => {
     if (!selectedMethod) {
@@ -252,15 +252,16 @@ const Booking = () => {
       const result = await initiatePayment(paymentData);
 
       if (result.success) {
-        // ✅ Update booking status to confirmed after payment
-        await updateBookingStatus(savedBookingId, 'confirmed');
+        // ✅ DO NOT UPDATE STATUS - Keep as 'pending'
+        // Admin will accept/reject manually
         
-        toast.success('✅ Payment successful! Booking confirmed.');
+        toast.success('✅ Payment successful! Booking pending admin approval.');
         navigate('/booking-success', {
           state: {
             bookingId: savedBookingId,
             booking: savedBookingData,
-            paymentId: result.paymentId
+            paymentId: result.paymentId,
+            status: 'pending'  // ✅ Still pending for admin approval
           }
         });
       } else {

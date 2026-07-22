@@ -1,3 +1,5 @@
+// src/components/admin/AdminBookings.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getAllBookings, updateBookingStatus, deleteBooking } from '../../firebase/firestore';
@@ -24,25 +26,72 @@ const AdminBookings = () => {
     try {
       setLoading(true);
       const data = await getAllBookings();
+      console.log('📋 All bookings fetched:', data);
       setBookings(data || []);
     } catch (error) {
+      console.error('❌ Error fetching bookings:', error);
       toast.error('Failed to load bookings');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusUpdate = async (id, status) => {
+  // ============================================
+  // ✅ ADMIN ACCEPT BOOKING
+  // ============================================
+  const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
-      await updateBookingStatus(id, status);
-      toast.success(`✅ Booking ${status}!`);
+      await updateBookingStatus(bookingId, 'confirmed');
+      
+      toast.success(
+        (t) => (
+          <div>
+            <div><strong>✅ Booking Confirmed!</strong></div>
+            <div>👤 {bookingData?.guestName || 'Guest'}</div>
+            <div>📱 {bookingData?.guestPhone || 'N/A'}</div>
+          </div>
+        ),
+        { duration: 5000 }
+      );
+      
       fetchBookings();
     } catch (error) {
-      toast.error('Failed to update booking');
+      console.error('❌ Accept error:', error);
+      toast.error('Failed to accept booking');
     }
   };
 
+  // ============================================
+  // ✅ ADMIN CANCEL BOOKING
+  // ============================================
+  const handleCancelBooking = async (bookingId, bookingData) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) {
+      return;
+    }
+
+    try {
+      await updateBookingStatus(bookingId, 'cancelled');
+      
+      toast.error(
+        (t) => (
+          <div>
+            <div><strong>❌ Booking Cancelled</strong></div>
+            <div>👤 {bookingData?.guestName || 'Guest'}</div>
+          </div>
+        ),
+        { duration: 4000 }
+      );
+      
+      fetchBookings();
+    } catch (error) {
+      console.error('❌ Cancel error:', error);
+      toast.error('Failed to cancel booking');
+    }
+  };
+
+  // ============================================
   // ✅ DELETE BOOKING
+  // ============================================
   const handleDelete = async (bookingId) => {
     if (!window.confirm('Are you sure you want to delete this booking?')) {
       return;
@@ -141,43 +190,52 @@ const AdminBookings = () => {
                 </td>
                 <td>
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                    {/* ✅ Show Accept/Cancel for pending bookings */}
                     {booking.status === 'pending' && (
                       <>
                         <button 
                           className="btn-confirm-pro" 
-                          onClick={() => handleStatusUpdate(booking.id, 'confirmed')}
-                          title="Confirm"
+                          onClick={() => handleAcceptBooking(booking.id, booking)}
+                          title="Confirm Booking"
                         >
-                          ✅
+                          ✅ Accept
                         </button>
                         <button 
                           className="btn-cancel-pro" 
-                          onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
-                          title="Cancel"
+                          onClick={() => handleCancelBooking(booking.id, booking)}
+                          title="Cancel Booking"
                         >
-                          ❌
+                          ❌ Cancel
                         </button>
                       </>
                     )}
+                    
+                    {/* ✅ Show Cancel for confirmed bookings */}
                     {booking.status === 'confirmed' && (
-                      <button 
-                        className="btn-cancel-pro" 
-                        onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
-                        title="Cancel"
-                      >
-                        ❌
-                      </button>
+                      <>
+                        <span className="confirmed-badge">✅ Confirmed</span>
+                        <button 
+                          className="btn-cancel-pro" 
+                          onClick={() => handleCancelBooking(booking.id, booking)}
+                          title="Cancel Booking"
+                        >
+                          ❌ Cancel
+                        </button>
+                      </>
                     )}
+                    
+                    {/* ✅ Show for cancelled bookings */}
                     {booking.status === 'cancelled' && (
-                      <span className="no-action">No actions</span>
+                      <span className="cancelled-badge">❌ Cancelled</span>
                     )}
-                    {/* ✅ DELETE BUTTON - FOR ALL STATUS */}
+                    
+                    {/* ✅ Delete button for all */}
                     <button 
                       className="btn-delete-pro" 
                       onClick={() => handleDelete(booking.id)}
                       title="Delete Booking"
                     >
-                      🗑️
+                      🗑️ Delete
                     </button>
                   </div>
                 </td>
