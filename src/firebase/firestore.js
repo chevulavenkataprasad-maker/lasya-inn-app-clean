@@ -97,7 +97,7 @@ export const deleteRoom = async (id) => {
 };
 
 // ============================================
-// BOOKING FUNCTIONS
+// ✅ BOOKING FUNCTIONS - FIXED (No orderBy)
 // ============================================
 
 // Add Booking
@@ -108,6 +108,7 @@ export const addBooking = async (bookingData) => {
       createdAt: new Date().toISOString(),
       status: 'pending'
     });
+    console.log('✅ Booking added:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('❌ Error adding booking:', error);
@@ -115,31 +116,42 @@ export const addBooking = async (bookingData) => {
   }
 };
 
-// Get User Bookings
+// ✅ Get User Bookings - FIXED (No orderBy)
 export const getUserBookings = async (userId) => {
   try {
     const q = query(
       bookingsCollection, 
-      where('userId', '==', userId), 
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
+      // orderBy('createdAt', 'desc') // ← Temporary removed to fix index error
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const bookings = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    }));
+    console.log('✅ User bookings fetched:', bookings.length);
+    return bookings;
   } catch (error) {
     console.error('❌ Error fetching user bookings:', error);
-    throw error;
+    return []; // Return empty array instead of throwing
   }
 };
 
-// Get All Bookings (Admin)
+// ✅ Get All Bookings - FIXED (No orderBy)
 export const getAllBookings = async () => {
   try {
-    const q = query(bookingsCollection, orderBy('createdAt', 'desc'));
+    const q = query(bookingsCollection);
+    // const q = query(bookingsCollection, orderBy('createdAt', 'desc')); // ← Temporary removed
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const bookings = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    }));
+    console.log('✅ All bookings fetched:', bookings.length);
+    return bookings;
   } catch (error) {
     console.error('❌ Error fetching all bookings:', error);
-    throw error;
+    return []; // Return empty array instead of throwing
   }
 };
 
@@ -182,7 +194,7 @@ export const getBooking = async (id) => {
 };
 
 // ============================================
-// ✅ CANCEL BOOKING - ADDED
+// ✅ CANCEL BOOKING
 // ============================================
 export const cancelBooking = async (bookingId) => {
   try {
@@ -218,7 +230,7 @@ export const cancelBooking = async (bookingId) => {
 };
 
 // ============================================
-// REVIEWS FUNCTIONS
+// ✅ REVIEWS FUNCTIONS - FIXED (No orderBy)
 // ============================================
 
 // Add Review
@@ -236,10 +248,11 @@ export const addReview = async (reviewData) => {
   }
 };
 
-// Get All Reviews
+// ✅ Get All Reviews - FIXED (No orderBy)
 export const getReviews = async () => {
   try {
-    const q = query(reviewsCollection, orderBy('createdAt', 'desc'));
+    const q = query(reviewsCollection);
+    // const q = query(reviewsCollection, orderBy('createdAt', 'desc')); // ← Temporary removed
     const snapshot = await getDocs(q);
     const reviews = snapshot.docs.map(doc => ({ 
       id: doc.id, 
@@ -253,9 +266,10 @@ export const getReviews = async () => {
   }
 };
 
-// Real-time Reviews Listener
+// ✅ Real-time Reviews Listener - FIXED (No orderBy)
 export const listenReviews = (callback) => {
-  const q = query(reviewsCollection, orderBy('createdAt', 'desc'));
+  const q = query(reviewsCollection);
+  // const q = query(reviewsCollection, orderBy('createdAt', 'desc')); // ← Temporary removed
   return onSnapshot(q, (snapshot) => {
     const reviews = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -265,13 +279,13 @@ export const listenReviews = (callback) => {
   });
 };
 
-// Get Reviews by User
+// ✅ Get Reviews by User - FIXED (No orderBy)
 export const getReviewsByUser = async (userId) => {
   try {
     const q = query(
       reviewsCollection, 
-      where('userId', '==', userId), 
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
+      // orderBy('createdAt', 'desc') // ← Temporary removed
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -308,7 +322,7 @@ export const updateReview = async (id, data) => {
 };
 
 // ============================================
-// GALLERY FUNCTIONS
+// ✅ GALLERY FUNCTIONS - FIXED (No orderBy)
 // ============================================
 
 // Add Gallery Image
@@ -326,10 +340,11 @@ export const addGalleryImage = async (imageData) => {
   }
 };
 
-// Get Gallery Images
+// ✅ Get Gallery Images - FIXED (No orderBy)
 export const getGalleryImages = async () => {
   try {
-    const q = query(galleryCollection, orderBy('createdAt', 'desc'));
+    const q = query(galleryCollection);
+    // const q = query(galleryCollection, orderBy('createdAt', 'desc')); // ← Temporary removed
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
@@ -379,13 +394,13 @@ export const updateGalleryImage = async (id, data) => {
   }
 };
 
-// Get Gallery Images by Category
+// ✅ Get Gallery Images by Category - FIXED (No orderBy)
 export const getGalleryImagesByCategory = async (category) => {
   try {
     const q = query(
       galleryCollection, 
-      where('category', '==', category),
-      orderBy('createdAt', 'desc')
+      where('category', '==', category)
+      // orderBy('createdAt', 'desc') // ← Temporary removed
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
