@@ -1,7 +1,7 @@
 // src/components/pages/Booking.jsx
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { addBooking } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
@@ -12,13 +12,19 @@ import './Booking.css';
 const Booking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { roomId } = useParams(); // ✅ Get roomId from URL
+
+  // ✅ Get room data from location state
+  const roomData = location.state || {};
+  
   const [submitting, setSubmitting] = useState(false);
   const [aadharFile, setAadharFile] = useState(null);
   const [aadharPreview, setAadharPreview] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   // ============================================
-  // PAYMENT STATE - ✅ ఇవి ఉండాలి
+  // PAYMENT STATE
   // ============================================
   const [showPayment, setShowPayment] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState(null);
@@ -35,7 +41,7 @@ const Booking = () => {
   const [savedBookingData, setSavedBookingData] = useState(null);
 
   // ============================================
-  // FORM STATE
+  // FORM STATE - With Room Details from URL
   // ============================================
   const [formData, setFormData] = useState({
     guestName: user?.displayName || '',
@@ -52,10 +58,25 @@ const Booking = () => {
     checkOutTime: '11:00',
     guests: 1,
     specialRequests: '',
-    roomName: 'Deluxe AC Room',
-    roomPrice: 1200,
-    roomType: 'ac'
+    // ✅ Room details from URL
+    roomId: roomData.roomId || roomId || '',
+    roomName: roomData.roomName || 'Deluxe AC Room',
+    roomPrice: roomData.roomPrice || 1200,
+    roomType: roomData.roomType || 'ac',
+    roomImage: roomData.imageUrl || ''
   });
+
+  // ✅ Debug - Check received room data
+  useEffect(() => {
+    console.log('📋 Room Data from Home:', roomData);
+    console.log('📋 Room ID from URL:', roomId);
+    console.log('📋 Form Data:', formData);
+    
+    // If room data is missing, show error
+    if (!roomData.roomName && !roomId) {
+      toast.error('Room details not found. Please select a room.');
+    }
+  }, [roomData, roomId]);
 
   // ============================================
   // PAYMENT METHODS
@@ -77,7 +98,7 @@ const Booking = () => {
   ];
 
   // ============================================
-  // CALCULATE TOTAL
+  // CALCULATE TOTAL - Using room price from URL
   // ============================================
   const calculateTotal = () => {
     if (formData.checkInDate && formData.checkOutDate) {
@@ -138,6 +159,10 @@ const Booking = () => {
       navigate('/login');
       return;
     }
+    if (!formData.roomId) {
+      toast.error('Room information missing. Please go back and select a room.');
+      return;
+    }
 
     setSubmitting(true);
 
@@ -151,9 +176,10 @@ const Booking = () => {
         userId: user.uid,
         userName: user.displayName || 'Guest',
         userEmail: user.email,
-        roomName: formData.roomName || 'Deluxe AC Room',
-        roomType: formData.roomType || 'ac',
-        roomPrice: formData.roomPrice || 1200,
+        roomId: formData.roomId,
+        roomName: formData.roomName,
+        roomType: formData.roomType,
+        roomPrice: formData.roomPrice,
         guestName: formData.guestName,
         guestEmail: formData.guestEmail,
         guestPhone: formData.guestPhone,
@@ -179,12 +205,9 @@ const Booking = () => {
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
 
-      // ✅ CRITICAL FIX: Payment section చూపించడానికి
       setSavedBookingId(bookingId);
       setSavedBookingData(bookingData);
-      setShowPayment(true);  // <<<< ఇది చాలా ముఖ్యం!
-
-      console.log('✅ ShowPayment set to true'); // Debug
+      setShowPayment(true);
 
       toast.success('📋 Booking details saved! Please complete payment.');
 
@@ -271,13 +294,9 @@ const Booking = () => {
   // RENDER PAYMENT SECTION
   // ============================================
   const renderPaymentSection = () => {
-    // ✅ showPayment true అయితే మాత్రమే render అవుతుంది
     if (!showPayment) {
-      console.log('⚠️ Payment section hidden - showPayment is false');
       return null;
     }
-
-    console.log('✅ Payment section rendering...');
 
     return (
       <div className="payment-section-pro">
@@ -286,7 +305,6 @@ const Booking = () => {
           <p className="payment-amount">Total: ₹{totalAmount}</p>
         </div>
 
-        {/* Payment Methods */}
         <div className="payment-methods-grid">
           {paymentMethods.map((method) => (
             <div
@@ -301,7 +319,6 @@ const Booking = () => {
           ))}
         </div>
 
-        {/* UPI */}
         {selectedMethod === 'upi' && (
           <div className="payment-form-pro">
             <h4>📱 UPI Payment</h4>
@@ -327,7 +344,6 @@ const Booking = () => {
           </div>
         )}
 
-        {/* Card */}
         {selectedMethod === 'card' && (
           <div className="payment-form-pro">
             <h4>💳 Card Payment</h4>
@@ -385,7 +401,6 @@ const Booking = () => {
           </div>
         )}
 
-        {/* NetBanking */}
         {selectedMethod === 'netbanking' && (
           <div className="payment-form-pro">
             <h4>🏦 Net Banking</h4>
@@ -404,7 +419,6 @@ const Booking = () => {
           </div>
         )}
 
-        {/* Wallet */}
         {selectedMethod === 'wallet' && (
           <div className="payment-form-pro">
             <h4>👛 Wallet Payment</h4>
@@ -419,7 +433,6 @@ const Booking = () => {
           </div>
         )}
 
-        {/* Pay Button */}
         <button
           type="button"
           className="btn-pay-pro"
@@ -446,6 +459,21 @@ const Booking = () => {
 
       <div className="booking-container-pro">
         <form onSubmit={handleSubmit} className="booking-form-pro">
+          {/* ✅ Room Details Display */}
+          <div className="booking-section-pro room-details-display">
+            <h3>🛏️ Selected Room</h3>
+            <div className="room-summary">
+              {formData.roomImage && (
+                <img src={formData.roomImage} alt={formData.roomName} className="room-thumbnail" />
+              )}
+              <div className="room-info">
+                <h4>{formData.roomName}</h4>
+                <p>₹{formData.roomPrice} / night</p>
+                <p className="room-type">{formData.roomType === 'ac' ? '❄️ AC' : '🌬️ Non-AC'}</p>
+              </div>
+            </div>
+          </div>
+
           {/* Date & Time */}
           <div className="booking-section-pro">
             <h3>📅 Date & Time</h3>
@@ -699,9 +727,7 @@ const Booking = () => {
           </div>
         </form>
 
-        {/* ============================================ */}
-        {/* ✅ PAYMENT SECTION */}
-        {/* ============================================ */}
+        {/* Payment Section */}
         {renderPaymentSection()}
         
       </div>
