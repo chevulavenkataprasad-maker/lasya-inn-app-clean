@@ -179,10 +179,12 @@ const Booking = () => {
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
 
-      // ✅ IMPORTANT: Payment section చూపించడానికి
+      // ✅ CRITICAL FIX: Payment section చూపించడానికి
       setSavedBookingId(bookingId);
       setSavedBookingData(bookingData);
-      setShowPayment(true);  // <<<< ఇది ఉండాలి!
+      setShowPayment(true);  // <<<< ఇది చాలా ముఖ్యం!
+
+      console.log('✅ ShowPayment set to true'); // Debug
 
       toast.success('📋 Booking details saved! Please complete payment.');
 
@@ -270,9 +272,12 @@ const Booking = () => {
   // ============================================
   const renderPaymentSection = () => {
     // ✅ showPayment true అయితే మాత్రమే render అవుతుంది
-    if (!showPayment) return null;
+    if (!showPayment) {
+      console.log('⚠️ Payment section hidden - showPayment is false');
+      return null;
+    }
 
-    console.log('✅ Payment section rendering...'); // Debug
+    console.log('✅ Payment section rendering...');
 
     return (
       <div className="payment-section-pro">
@@ -695,7 +700,7 @@ const Booking = () => {
         </form>
 
         {/* ============================================ */}
-        {/* ✅ PAYMENT SECTION - ఇది showPayment true అయితే కనిపిస్తుంది */}
+        {/* ✅ PAYMENT SECTION */}
         {/* ============================================ */}
         {renderPaymentSection()}
         
