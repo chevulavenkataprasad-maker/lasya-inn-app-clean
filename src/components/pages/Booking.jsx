@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { addBooking } from '../../firebase/firestore';
+import { addBooking, updateRoom, getRoom } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
 import { initiatePayment } from '../../services/paymentService';
 import toast from 'react-hot-toast';
@@ -15,7 +15,6 @@ const Booking = () => {
   const location = useLocation();
   const { roomId } = useParams();
 
-  // Get room data from location state
   const roomData = location.state || {};
   
   const [submitting, setSubmitting] = useState(false);
@@ -23,9 +22,6 @@ const Booking = () => {
   const [aadharPreview, setAadharPreview] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  // ============================================
-  // PAYMENT STATE
-  // ============================================
   const [showPayment, setShowPayment] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [upiId, setUpiId] = useState('');
@@ -40,9 +36,6 @@ const Booking = () => {
   const [savedBookingId, setSavedBookingId] = useState(null);
   const [savedBookingData, setSavedBookingData] = useState(null);
 
-  // ============================================
-  // FORM STATE - With Room Details from URL
-  // ============================================
   const [formData, setFormData] = useState({
     guestName: user?.displayName || '',
     guestEmail: user?.email || '',
@@ -65,20 +58,34 @@ const Booking = () => {
     roomImage: roomData.imageUrl || ''
   });
 
-  // Debug - Check received room data
   useEffect(() => {
-    console.log('📋 Room Data from Home:', roomData);
+    console.log('📋 Room Data from state:', roomData);
     console.log('📋 Room ID from URL:', roomId);
-    console.log('📋 Form Data:', formData);
     
-    if (!roomData.roomName && !roomId) {
-      toast.error('Room details not found. Please select a room.');
+    if (!roomData.roomName && roomId) {
+      fetchRoomDetails(roomId);
     }
-  }, [roomData, roomId]);
+  }, [roomId, roomData]);
 
-  // ============================================
-  // PAYMENT METHODS
-  // ============================================
+  const fetchRoomDetails = async (id) => {
+    try {
+      const room = await getRoom(id);
+      if (room) {
+        setFormData(prev => ({
+          ...prev,
+          roomId: room.id,
+          roomName: room.name || 'Deluxe AC Room',
+          roomPrice: room.price || 1200,
+          roomType: room.type || 'ac',
+          roomImage: room.image || ''
+        }));
+      }
+    } catch (error) {
+      console.error('❌ Error fetching room:', error);
+      toast.error('Failed to load room details');
+    }
+  };
+
   const paymentMethods = [
     { id: 'upi', name: 'UPI', icon: '📱', desc: 'Google Pay, PhonePe, Paytm' },
     { id: 'card', name: 'Card', icon: '💳', desc: 'Credit/Debit Card' },
@@ -95,9 +102,6 @@ const Booking = () => {
     { id: 'yes', name: 'Yes Bank' }
   ];
 
-  // ============================================
-  // CALCULATE TOTAL - Using room price from URL
-  // ============================================
   const calculateTotal = () => {
     if (formData.checkInDate && formData.checkOutDate) {
       const checkIn = new Date(formData.checkInDate);
@@ -114,7 +118,7 @@ const Booking = () => {
     : 1;
 
   // ============================================
-  // HANDLE FORM SUBMIT
+  // ✅ HANDLE FORM SUBMIT - With Room Availability
   // ============================================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -170,9 +174,27 @@ const Booking = () => {
         aadharUrl = await uploadFileToS3(aadharFile, 'aadhar');
       }
 
-      // ✅ IMPORTANT: bookingData with all required fields
+      // ✅ 1. Get current room data
+      const room = await getRoom(formData.roomId);
+      const currentAvailable = room.availableRooms || 0;
+      
+      if (currentAvailable <= 0) {
+        toast.error('Room is fully booked!');
+        setSubmitting(false);
+        return;
+      }
+      
+      const newAvailable = currentAvailable - 1;
+
+      // ✅ 2. Update room availability
+      await updateRoom(formData.roomId, {
+        availableRooms: newAvailable,
+        isAvailable: newAvailable > 0
+      });
+
+      // ✅ 3. Create booking
       const bookingData = {
-        userId: user.uid,                // ✅ Required - matches user
+        userId: user.uid,
         userName: user.displayName || 'Guest',
         userEmail: user.email,
         roomId: formData.roomId,
@@ -196,12 +218,12 @@ const Booking = () => {
         specialRequests: formData.specialRequests,
         totalDays: totalDays,
         totalPrice: totalAmount,
-        status: 'pending',              // ✅ Required - shows in My Bookings
+        status: 'pending',
         paymentStatus: 'pending',
         createdAt: new Date().toISOString()
       };
 
-      console.log('📝 Creating booking:', bookingData);
+      console.log('📝 Booking Data:', bookingData);
 
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
@@ -221,7 +243,7 @@ const Booking = () => {
   };
 
   // ============================================
-  // ✅ HANDLE PAYMENT - FIXED (No auto-confirm)
+  // ✅ HANDLE PAYMENT - No auto-confirm
   // ============================================
   const handlePayment = async () => {
     if (!selectedMethod) {
@@ -252,16 +274,13 @@ const Booking = () => {
       const result = await initiatePayment(paymentData);
 
       if (result.success) {
-        // ✅ DO NOT UPDATE STATUS - Keep as 'pending'
-        // Admin will accept/reject manually
-        
         toast.success('✅ Payment successful! Booking pending admin approval.');
         navigate('/booking-success', {
           state: {
             bookingId: savedBookingId,
             booking: savedBookingData,
             paymentId: result.paymentId,
-            status: 'pending'  // ✅ Still pending for admin approval
+            status: 'pending'
           }
         });
       } else {
@@ -276,9 +295,6 @@ const Booking = () => {
     }
   };
 
-  // ============================================
-  // AADHAR UPLOAD
-  // ============================================
   const handleAadharUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -295,13 +311,8 @@ const Booking = () => {
     }
   };
 
-  // ============================================
-  // RENDER PAYMENT SECTION
-  // ============================================
   const renderPaymentSection = () => {
-    if (!showPayment) {
-      return null;
-    }
+    if (!showPayment) return null;
 
     return (
       <div className="payment-section-pro">
@@ -452,9 +463,6 @@ const Booking = () => {
     );
   };
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <div className="booking-page-pro">
       <div className="booking-hero-pro">
@@ -464,9 +472,6 @@ const Booking = () => {
 
       <div className="booking-container-pro">
         <form onSubmit={handleSubmit} className="booking-form-pro">
-          {/* ========================================= */}
-          {/* ROOM DETAILS DISPLAY */}
-          {/* ========================================= */}
           <div className="booking-section-pro room-details-display">
             <h3>🛏️ Selected Room</h3>
             <div className="room-summary">
@@ -481,9 +486,6 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* ========================================= */}
-          {/* DATE & TIME */}
-          {/* ========================================= */}
           <div className="booking-section-pro">
             <h3>📅 Date & Time</h3>
             <div className="booking-grid-pro">
@@ -532,9 +534,6 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* ========================================= */}
-          {/* GUEST DETAILS */}
-          {/* ========================================= */}
           <div className="booking-section-pro">
             <h3>👤 Guest Details</h3>
             <div className="booking-grid-pro">
@@ -588,9 +587,6 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* ========================================= */}
-          {/* ADDRESS DETAILS */}
-          {/* ========================================= */}
           <div className="booking-section-pro">
             <h3>📍 Address Details</h3>
             <div className="booking-grid-pro">
@@ -630,9 +626,6 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* ========================================= */}
-          {/* AADHAR DETAILS */}
-          {/* ========================================= */}
           <div className="booking-section-pro aadhar-section-pro">
             <h3>🪪 Aadhar Details <span className="required">*</span></h3>
             <div className="booking-grid-pro">
@@ -688,9 +681,6 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* ========================================= */}
-          {/* SPECIAL REQUESTS */}
-          {/* ========================================= */}
           <div className="booking-section-pro">
             <h3>📝 Special Requests</h3>
             <textarea
@@ -701,9 +691,6 @@ const Booking = () => {
             />
           </div>
 
-          {/* ========================================= */}
-          {/* AMOUNT SUMMARY */}
-          {/* ========================================= */}
           <div className="booking-section-pro amount-summary-pro">
             <h3>💰 Booking Summary</h3>
             <div className="amount-details">
@@ -722,9 +709,6 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* ========================================= */}
-          {/* TERMS & SUBMIT */}
-          {/* ========================================= */}
           <div className="booking-actions-pro">
             <div className="terms-pro">
               <input
@@ -748,11 +732,7 @@ const Booking = () => {
           </div>
         </form>
 
-        {/* ========================================= */}
-        {/* PAYMENT SECTION */}
-        {/* ========================================= */}
         {renderPaymentSection()}
-        
       </div>
     </div>
   );

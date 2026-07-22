@@ -3,9 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getRooms, cancelBooking } from '../../firebase/firestore';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { getRooms, cancelBooking, listenToUserBookings } from '../../firebase/firestore';
 import toast from 'react-hot-toast';
 import './Home.css';
 
@@ -21,49 +19,12 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('available');
 
+  // ============================================
+  // ✅ FETCH ROOMS
+  // ============================================
   useEffect(() => {
     fetchRooms();
   }, []);
-
-  // ============================================
-  // ✅ REAL-TIME LISTENER - WITH DEBUG
-  // ============================================
-  useEffect(() => {
-    if (!user) {
-      console.log('⚠️ No user, clearing bookings');
-      setUserBookings([]);
-      return;
-    }
-
-    console.log('👤 Setting up listener for user:', user.uid);
-
-    try {
-      const bookingsRef = collection(db, 'bookings');
-      const q = query(
-        bookingsRef,
-        where('userId', '==', user.uid)
-      );
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const bookings = [];
-        snapshot.forEach((doc) => {
-          bookings.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        console.log('🔄 Real-time bookings update:', bookings);
-        console.log('📊 Booking count:', bookings.length);
-        setUserBookings(bookings);
-      }, (error) => {
-        console.error('❌ Listener error:', error);
-      });
-
-      return () => unsubscribe();
-    } catch (error) {
-      console.error('❌ Setup listener error:', error);
-    }
-  }, [user]);
 
   const fetchRooms = async () => {
     try {
@@ -80,37 +41,41 @@ const Home = () => {
   };
 
   // ============================================
-  // ✅ GET ACTIVE BOOKINGS - WITH DEBUG
+  // ✅ REAL-TIME LISTENER FOR USER BOOKINGS
+  // ============================================
+  useEffect(() => {
+    if (!user) {
+      console.log('⚠️ No user, clearing bookings');
+      setUserBookings([]);
+      return;
+    }
+
+    console.log('👤 Setting up real-time listener for user:', user.uid);
+
+    const unsubscribe = listenToUserBookings(user.uid, (bookings) => {
+      console.log('📋 Real-time bookings update:', bookings);
+      setUserBookings(bookings);
+    });
+
+    return () => {
+      console.log('🔴 Unsubscribing from bookings listener');
+      unsubscribe();
+    };
+  }, [user]);
+
+  // ============================================
+  // ✅ GET ACTIVE BOOKINGS
   // ============================================
   const getActiveBookings = () => {
-    if (!user) {
-      console.log('⚠️ No user');
-      return [];
-    }
-
-    console.log('👤 Current user UID:', user.uid);
-    console.log('📋 All bookings:', userBookings);
-
-    if (userBookings.length === 0) {
-      console.log('⚠️ No bookings found');
-      return [];
-    }
+    if (!user || userBookings.length === 0) return [];
 
     const active = userBookings.filter(booking => {
       const isUserBooking = booking.userId === user.uid;
       const isActive = booking.status === 'confirmed' || booking.status === 'pending';
-      
-      console.log(`📋 Booking ${booking.id}:`, {
-        userId: booking.userId,
-        match: isUserBooking,
-        status: booking.status,
-        active: isActive
-      });
-      
       return isUserBooking && isActive;
     });
 
-    console.log('✅ Active bookings count:', active.length);
+    console.log('✅ Active bookings:', active.length);
     return active;
   };
 
@@ -149,6 +114,7 @@ const Home = () => {
       const result = await cancelBooking(bookingId);
       if (result.success) {
         toast.success('✅ Booking cancelled successfully');
+        // Listener will auto-update
       }
     } catch (error) {
       console.error('❌ Cancel error:', error);
@@ -161,8 +127,6 @@ const Home = () => {
   // ============================================
   const renderBookedRooms = () => {
     const activeBookings = getActiveBookings();
-
-    console.log('📊 Rendering booked rooms:', activeBookings);
 
     if (activeBookings.length === 0) {
       return (
@@ -420,7 +384,6 @@ const Home = () => {
       navigate('/login');
       return;
     }
-    // ✅ Quick booking with room selection
     navigate('/booking', { state: { checkIn, checkOut, guests, roomType } });
   };
 

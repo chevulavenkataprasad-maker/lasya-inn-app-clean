@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getAllBookings, updateBookingStatus, deleteBooking, updateRoom, getRoom } from '../../firebase/firestore';
+import { updateBookingStatus, deleteBooking, listenToAllBookings } from '../../firebase/firestore';
 import toast from 'react-hot-toast';
 import './AdminBookings.css';
 
@@ -19,33 +19,32 @@ const AdminBookings = () => {
     if (filterParam && ['all', 'pending', 'confirmed', 'cancelled'].includes(filterParam)) {
       setFilter(filterParam);
     }
-    fetchBookings();
   }, [location.search]);
 
-  const fetchBookings = async () => {
-    try {
-      setLoading(true);
-      const data = await getAllBookings();
-      console.log('📋 All bookings fetched:', data);
+  // ============================================
+  // ✅ REAL-TIME LISTENER FOR ALL BOOKINGS
+  // ============================================
+  useEffect(() => {
+    setLoading(true);
+    
+    const unsubscribe = listenToAllBookings((data) => {
+      console.log('📋 Real-time bookings update:', data);
       setBookings(data || []);
-    } catch (error) {
-      console.error('❌ Error fetching bookings:', error);
-      toast.error('Failed to load bookings');
-    } finally {
       setLoading(false);
-    }
-  };
+    });
+
+    return () => {
+      console.log('🔴 Unsubscribing from all bookings');
+      unsubscribe();
+    };
+  }, []);
 
   // ============================================
-  // ✅ ADMIN ACCEPT BOOKING - Update room availability
+  // ✅ ADMIN ACCEPT BOOKING
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
-      // 1. Update booking status
       await updateBookingStatus(bookingId, 'confirmed');
-      
-      // 2. Room availability already decreased when booking was made
-      // No need to decrease again
       
       toast.success(
         (t) => (
@@ -57,8 +56,6 @@ const AdminBookings = () => {
         ),
         { duration: 5000 }
       );
-      
-      fetchBookings();
     } catch (error) {
       console.error('❌ Accept error:', error);
       toast.error('Failed to accept booking');
@@ -66,7 +63,7 @@ const AdminBookings = () => {
   };
 
   // ============================================
-  // ✅ ADMIN CANCEL BOOKING - NO RESTORE (Admin must update manually)
+  // ✅ ADMIN CANCEL BOOKING - NO RESTORE
   // ============================================
   const handleCancelBooking = async (bookingId, bookingData) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
@@ -74,7 +71,6 @@ const AdminBookings = () => {
     }
 
     try {
-      // ✅ Only update booking status - NO room restore
       await updateBookingStatus(bookingId, 'cancelled');
       
       toast.error(
@@ -87,8 +83,6 @@ const AdminBookings = () => {
         ),
         { duration: 4000 }
       );
-      
-      fetchBookings();
     } catch (error) {
       console.error('❌ Cancel error:', error);
       toast.error('Failed to cancel booking');
@@ -106,7 +100,6 @@ const AdminBookings = () => {
     try {
       await deleteBooking(bookingId);
       toast.success('✅ Booking deleted successfully!');
-      fetchBookings();
     } catch (error) {
       console.error('❌ Delete error:', error);
       toast.error('Failed to delete booking');
@@ -196,7 +189,6 @@ const AdminBookings = () => {
                 </td>
                 <td>
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                    {/* ✅ Show Accept/Cancel for pending bookings */}
                     {booking.status === 'pending' && (
                       <>
                         <button 
@@ -216,7 +208,6 @@ const AdminBookings = () => {
                       </>
                     )}
                     
-                    {/* ✅ Show Cancel for confirmed bookings */}
                     {booking.status === 'confirmed' && (
                       <>
                         <span className="confirmed-badge">✅ Confirmed</span>
@@ -230,12 +221,10 @@ const AdminBookings = () => {
                       </>
                     )}
                     
-                    {/* ✅ Show for cancelled bookings */}
                     {booking.status === 'cancelled' && (
                       <span className="cancelled-badge">❌ Cancelled</span>
                     )}
                     
-                    {/* ✅ Delete button for all */}
                     <button 
                       className="btn-delete-pro" 
                       onClick={() => handleDelete(booking.id)}
