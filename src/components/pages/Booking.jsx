@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { addBooking } from '../../firebase/firestore';
+import { addBooking, updateBookingStatus } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
 import { initiatePayment } from '../../services/paymentService';
 import toast from 'react-hot-toast';
@@ -13,9 +13,9 @@ const Booking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { roomId } = useParams(); // ✅ Get roomId from URL
+  const { roomId } = useParams();
 
-  // ✅ Get room data from location state
+  // Get room data from location state
   const roomData = location.state || {};
   
   const [submitting, setSubmitting] = useState(false);
@@ -58,7 +58,6 @@ const Booking = () => {
     checkOutTime: '11:00',
     guests: 1,
     specialRequests: '',
-    // ✅ Room details from URL
     roomId: roomData.roomId || roomId || '',
     roomName: roomData.roomName || 'Deluxe AC Room',
     roomPrice: roomData.roomPrice || 1200,
@@ -66,13 +65,12 @@ const Booking = () => {
     roomImage: roomData.imageUrl || ''
   });
 
-  // ✅ Debug - Check received room data
+  // Debug - Check received room data
   useEffect(() => {
     console.log('📋 Room Data from Home:', roomData);
     console.log('📋 Room ID from URL:', roomId);
     console.log('📋 Form Data:', formData);
     
-    // If room data is missing, show error
     if (!roomData.roomName && !roomId) {
       toast.error('Room details not found. Please select a room.');
     }
@@ -251,6 +249,9 @@ const Booking = () => {
       const result = await initiatePayment(paymentData);
 
       if (result.success) {
+        // ✅ Update booking status to confirmed after payment
+        await updateBookingStatus(savedBookingId, 'confirmed');
+        
         toast.success('✅ Payment successful! Booking confirmed.');
         navigate('/booking-success', {
           state: {
@@ -459,7 +460,9 @@ const Booking = () => {
 
       <div className="booking-container-pro">
         <form onSubmit={handleSubmit} className="booking-form-pro">
-          {/* ✅ Room Details Display */}
+          {/* ========================================= */}
+          {/* ROOM DETAILS DISPLAY */}
+          {/* ========================================= */}
           <div className="booking-section-pro room-details-display">
             <h3>🛏️ Selected Room</h3>
             <div className="room-summary">
@@ -468,13 +471,15 @@ const Booking = () => {
               )}
               <div className="room-info">
                 <h4>{formData.roomName}</h4>
-                <p>₹{formData.roomPrice} / night</p>
-                <p className="room-type">{formData.roomType === 'ac' ? '❄️ AC' : '🌬️ Non-AC'}</p>
+                <p>₹{formData.roomPrice} <span>/ night</span></p>
+                <p className="room-type">{formData.roomType === 'ac' ? '❄️ AC Room' : '🌬️ Non-AC Room'}</p>
               </div>
             </div>
           </div>
 
-          {/* Date & Time */}
+          {/* ========================================= */}
+          {/* DATE & TIME */}
+          {/* ========================================= */}
           <div className="booking-section-pro">
             <h3>📅 Date & Time</h3>
             <div className="booking-grid-pro">
@@ -523,7 +528,9 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* Guest Details */}
+          {/* ========================================= */}
+          {/* GUEST DETAILS */}
+          {/* ========================================= */}
           <div className="booking-section-pro">
             <h3>👤 Guest Details</h3>
             <div className="booking-grid-pro">
@@ -577,7 +584,9 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* Address */}
+          {/* ========================================= */}
+          {/* ADDRESS DETAILS */}
+          {/* ========================================= */}
           <div className="booking-section-pro">
             <h3>📍 Address Details</h3>
             <div className="booking-grid-pro">
@@ -617,7 +626,9 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* Aadhar */}
+          {/* ========================================= */}
+          {/* AADHAR DETAILS */}
+          {/* ========================================= */}
           <div className="booking-section-pro aadhar-section-pro">
             <h3>🪪 Aadhar Details <span className="required">*</span></h3>
             <div className="booking-grid-pro">
@@ -673,7 +684,9 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* Special Requests */}
+          {/* ========================================= */}
+          {/* SPECIAL REQUESTS */}
+          {/* ========================================= */}
           <div className="booking-section-pro">
             <h3>📝 Special Requests</h3>
             <textarea
@@ -684,7 +697,9 @@ const Booking = () => {
             />
           </div>
 
-          {/* Amount Summary */}
+          {/* ========================================= */}
+          {/* AMOUNT SUMMARY */}
+          {/* ========================================= */}
           <div className="booking-section-pro amount-summary-pro">
             <h3>💰 Booking Summary</h3>
             <div className="amount-details">
@@ -703,7 +718,9 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* Terms & Submit */}
+          {/* ========================================= */}
+          {/* TERMS & SUBMIT */}
+          {/* ========================================= */}
           <div className="booking-actions-pro">
             <div className="terms-pro">
               <input
@@ -727,7 +744,9 @@ const Booking = () => {
           </div>
         </form>
 
-        {/* Payment Section */}
+        {/* ========================================= */}
+        {/* PAYMENT SECTION */}
+        {/* ========================================= */}
         {renderPaymentSection()}
         
       </div>
