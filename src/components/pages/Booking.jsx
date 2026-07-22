@@ -201,7 +201,7 @@ const Booking = () => {
         createdAt: new Date().toISOString()
       };
 
-      console.log('📝 Creating booking:', bookingData); // ✅ Debug
+      console.log('📝 Creating booking:', bookingData);
 
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
