@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getRooms, getUserBookings, cancelBooking } from '../../firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import toast from 'react-hot-toast';
 import './Home.css';
 
@@ -20,38 +22,105 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState('available');
 
   useEffect(() => {
-    fetchData();
+    fetchRooms();
+  }, []);
+
+  // ============================================
+  // ✅ REAL-TIME LISTENER - FIXED
+  // ============================================
+  useEffect(() => {
+    if (!user) {
+      setUserBookings([]);
+      return;
+    }
+
+    console.log('👤 Setting up real-time listener for user:', user.uid);
+
+    try {
+      const bookingsRef = collection(db, 'bookings');
+      const q = query(
+        bookingsRef,
+        where('userId', '==', user.uid)
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const bookings = [];
+        snapshot.forEach((doc) => {
+          bookings.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        console.log('🔄 Real-time bookings update:', bookings);
+        console.log('📊 Booking count:', bookings.length);
+        setUserBookings(bookings);
+      }, (error) => {
+        console.error('❌ Listener error:', error);
+      });
+
+      return () => {
+        console.log('🔴 Unsubscribing from listener');
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('❌ Setup listener error:', error);
+    }
   }, [user]);
 
-  const fetchData = async () => {
+  const fetchRooms = async () => {
     try {
       setLoading(true);
-      
       const roomsData = await getRooms();
-      console.log('📊 All rooms from Firestore:', roomsData); // ✅ Debug
+      console.log('🏨 Rooms fetched:', roomsData.length);
       setRooms(roomsData || []);
-      
-      if (user) {
-        const bookingsData = await getUserBookings(user.uid);
-        setUserBookings(bookingsData || []);
-      }
-      
     } catch (error) {
-      console.error('❌ Error:', error);
-      toast.error('Failed to load data');
+      console.error('❌ Error fetching rooms:', error);
+      toast.error('Failed to load rooms');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickBooking = () => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    navigate('/booking', { state: { checkIn, checkOut, guests, roomType } });
+  // ============================================
+  // ✅ GET ACTIVE BOOKINGS
+  // ============================================
+  const getActiveBookings = () => {
+    if (!user || userBookings.length === 0) return [];
+
+    const active = userBookings.filter(booking => {
+      const isActive = booking.status === 'confirmed' || booking.status === 'pending';
+      console.log(`📋 Booking: ${booking.id}, status: ${booking.status}, active: ${isActive}`);
+      return isActive;
+    });
+
+    console.log('✅ Active bookings:', active);
+    return active;
   };
 
+  // ============================================
+  // ✅ GET CANCELLED BOOKINGS
+  // ============================================
+  const getCancelledBookings = () => {
+    if (!user || userBookings.length === 0) return [];
+    
+    return userBookings.filter(booking => 
+      booking.status === 'cancelled'
+    );
+  };
+
+  // ============================================
+  // ✅ GET AVAILABLE ROOMS
+  // ============================================
+  const getAvailableRooms = () => {
+    return rooms.filter(room => {
+      const available = room.availableRooms || room.totalRooms || 0;
+      return available > 0;
+    });
+  };
+
+  // ============================================
+  // ✅ CANCEL BOOKING
+  // ============================================
   const handleCancelBooking = async (bookingId) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
       return;
@@ -61,7 +130,7 @@ const Home = () => {
       const result = await cancelBooking(bookingId);
       if (result.success) {
         toast.success('✅ Booking cancelled successfully');
-        fetchData();
+        // Listener will auto-update
       }
     } catch (error) {
       console.error('❌ Cancel error:', error);
@@ -70,33 +139,7 @@ const Home = () => {
   };
 
   // ============================================
-  // GET AVAILABLE ROOMS - Debug version
-  // ============================================
-  const getAvailableRooms = () => {
-    const available = rooms.filter(room => {
-      const availableCount = room.availableRooms || room.totalRooms || 0;
-      return availableCount > 0;
-    });
-    console.log('✅ Available rooms:', available); // ✅ Debug
-    return available;
-  };
-
-  const getBookedRooms = () => {
-    if (!user) return [];
-    return userBookings.filter(booking => 
-      booking.status === 'confirmed' || booking.status === 'pending'
-    );
-  };
-
-  const getCancelledRooms = () => {
-    if (!user) return [];
-    return userBookings.filter(booking => 
-      booking.status === 'cancelled'
-    );
-  };
-
-  // ============================================
-  // RENDER AVAILABLE ROOMS
+  // ✅ RENDER AVAILABLE ROOMS
   // ============================================
   const renderAvailableRooms = () => {
     const availableRooms = getAvailableRooms();
@@ -165,7 +208,14 @@ const Home = () => {
               </div>
               <p className="room-price">₹{room.price} <span>/ Night</span></p>
               <Link 
-                to={isAvailable ? `/room/${room.id}` : '#'} 
+                to={isAvailable ? `/booking/${room.id}` : '#'} 
+                state={{ 
+                  roomId: room.id,
+                  roomName: room.name,
+                  roomPrice: room.price,
+                  roomType: room.type,
+                  imageUrl: room.image
+                }}
                 className={`btn-book ${!isAvailable ? 'btn-booked' : ''}`}
                 onClick={(e) => {
                   if (!isAvailable) {
@@ -184,22 +234,25 @@ const Home = () => {
   };
 
   // ============================================
-  // RENDER BOOKED ROOMS
+  // ✅ RENDER BOOKED ROOMS
   // ============================================
   const renderBookedRooms = () => {
-    const bookedRooms = getBookedRooms();
+    const activeBookings = getActiveBookings();
 
-    if (bookedRooms.length === 0) {
+    if (activeBookings.length === 0) {
       return (
         <div className="no-rooms-message">
           <p>📋 You have no active bookings</p>
+          <p style={{ fontSize: '14px', color: '#888', marginTop: '10px' }}>
+            Book a room from Available Rooms tab
+          </p>
         </div>
       );
     }
 
     return (
       <div className="rooms-grid">
-        {bookedRooms.map((booking) => {
+        {activeBookings.map((booking) => {
           const room = rooms.find(r => r.id === booking.roomId);
           const roomName = booking.roomName || room?.name || 'Unknown Room';
           const roomPrice = booking.totalPrice || room?.price || 0;
@@ -226,8 +279,8 @@ const Home = () => {
                     loading="lazy"
                   />
                 )}
-                <span className="room-badge booked">
-                  📋 Booked
+                <span className={`room-badge ${status === 'confirmed' ? 'available' : 'booked'}`}>
+                  {status === 'confirmed' ? '✅ Confirmed' : '⏳ Pending'}
                 </span>
               </div>
               <h3>{roomName}</h3>
@@ -259,12 +312,12 @@ const Home = () => {
   };
 
   // ============================================
-  // RENDER CANCELLED ROOMS
+  // ✅ RENDER CANCELLED ROOMS
   // ============================================
   const renderCancelledRooms = () => {
-    const cancelledRooms = getCancelledRooms();
+    const cancelledBookings = getCancelledBookings();
 
-    if (cancelledRooms.length === 0) {
+    if (cancelledBookings.length === 0) {
       return (
         <div className="no-rooms-message">
           <p>❌ No cancelled bookings</p>
@@ -274,7 +327,7 @@ const Home = () => {
 
     return (
       <div className="rooms-grid">
-        {cancelledRooms.map((booking) => {
+        {cancelledBookings.map((booking) => {
           const room = rooms.find(r => r.id === booking.roomId);
           const roomName = booking.roomName || room?.name || 'Unknown Room';
           const roomPrice = booking.totalPrice || room?.price || 0;
@@ -327,7 +380,7 @@ const Home = () => {
   };
 
   // ============================================
-  // RENDER BASED ON TAB
+  // ✅ RENDER BASED ON TAB
   // ============================================
   const renderContent = () => {
     switch (activeTab) {
@@ -342,12 +395,24 @@ const Home = () => {
     }
   };
 
+  // ============================================
+  // ✅ QUICK BOOKING
+  // ============================================
+  const handleQuickBooking = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    navigate('/booking', { state: { checkIn, checkOut, guests, roomType } });
+  };
+
+  // ============================================
+  // ✅ RENDER
+  // ============================================
   return (
     <div className="home-page">
       
-      {/* ========================================= */}
       {/* HERO SECTION */}
-      {/* ========================================= */}
       <section className="hero-section">
         <div className="hero-content">
           <h1>WELCOME TO</h1>
@@ -365,9 +430,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ========================================= */}
       {/* BOOKING WIDGET */}
-      {/* ========================================= */}
       <section className="booking-widget">
         <div className="widget-container">
           <div className="widget-item">
@@ -416,11 +479,8 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ========================================= */}
       {/* ROOMS SECTION */}
-      {/* ========================================= */}
       <section className="rooms-section">
-        {/* Tabs */}
         <div className="rooms-tabs">
           <button 
             className={`tab-btn ${activeTab === 'available' ? 'active' : ''}`}
@@ -434,18 +494,17 @@ const Home = () => {
             onClick={() => setActiveTab('booked')}
           >
             📋 My Bookings
-            <span className="tab-count">{getBookedRooms().length}</span>
+            <span className="tab-count">{getActiveBookings().length}</span>
           </button>
           <button 
             className={`tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`}
             onClick={() => setActiveTab('cancelled')}
           >
             ❌ Cancelled
-            <span className="tab-count">{getCancelledRooms().length}</span>
+            <span className="tab-count">{getCancelledBookings().length}</span>
           </button>
         </div>
 
-        {/* Content */}
         {loading ? (
           <div className="rooms-loading">
             <div className="spinner"></div>
@@ -461,8 +520,8 @@ const Home = () => {
               </h2>
               <div className="room-count">
                 {activeTab === 'available' && `${getAvailableRooms().length} rooms`}
-                {activeTab === 'booked' && `${getBookedRooms().length} bookings`}
-                {activeTab === 'cancelled' && `${getCancelledRooms().length} bookings`}
+                {activeTab === 'booked' && `${getActiveBookings().length} bookings`}
+                {activeTab === 'cancelled' && `${getCancelledBookings().length} bookings`}
               </div>
             </div>
             {renderContent()}
@@ -470,9 +529,7 @@ const Home = () => {
         )}
       </section>
 
-      {/* ========================================= */}
       {/* WHY CHOOSE US */}
-      {/* ========================================= */}
       <section className="why-choose">
         <h2>WHY CHOOSE US?</h2>
         <div className="features-grid">
