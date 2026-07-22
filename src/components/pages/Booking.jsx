@@ -170,8 +170,9 @@ const Booking = () => {
         aadharUrl = await uploadFileToS3(aadharFile, 'aadhar');
       }
 
+      // ✅ IMPORTANT: bookingData with all required fields
       const bookingData = {
-        userId: user.uid,
+        userId: user.uid,                // ✅ Required - matches user
         userName: user.displayName || 'Guest',
         userEmail: user.email,
         roomId: formData.roomId,
@@ -195,10 +196,12 @@ const Booking = () => {
         specialRequests: formData.specialRequests,
         totalDays: totalDays,
         totalPrice: totalAmount,
-        status: 'pending',
+        status: 'pending',              // ✅ Required - shows in My Bookings
         paymentStatus: 'pending',
         createdAt: new Date().toISOString()
       };
+
+      console.log('📝 Creating booking:', bookingData); // ✅ Debug
 
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
