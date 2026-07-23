@@ -66,6 +66,13 @@ function App() {
             </ProtectedRoute>
           } />
           
+          {/* ✅ BOOKING ROUTE - WITHOUT roomId (Quick Booking from widget) */}
+          <Route path="/booking" element={
+            <ProtectedRoute>
+              <Booking />
+            </ProtectedRoute>
+          } />
+          
           {/* ✅ BOOKING ROUTE - WITH ROOM ID */}
           <Route path="/booking/:roomId" element={
             <ProtectedRoute>
