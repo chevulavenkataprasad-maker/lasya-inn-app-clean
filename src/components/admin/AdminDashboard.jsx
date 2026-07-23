@@ -3,7 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRooms, getAllBookings, deleteBooking } from '../../firebase/firestore';
-import { getAdminNotifications, markNotificationAsRead } from '../../firebase/notificationService';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase/config';
+import { markNotificationAsRead } from '../../firebase/notificationService';
+import { playNotificationSound } from '../../utils/soundService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -37,7 +40,52 @@ const AdminDashboard = () => {
     
     console.log('✅ Admin logged in, fetching data');
     fetchStats();
-    fetchNotifications();
+  }, []);
+
+  // ============================================
+  // ✅ REAL-TIME NOTIFICATIONS LISTENER
+  // ============================================
+  useEffect(() => {
+    const q = query(
+      collection(db, 'notifications'),
+      where('target', '==', 'admin')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = [];
+      let newCount = 0;
+      
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const docData = { id: change.doc.id, ...change.doc.data() };
+          data.push(docData);
+          newCount++;
+          console.log('🆕 New admin notification:', docData);
+          // Play sound for new notification
+          playNotificationSound('admin');
+        }
+      });
+      
+      snapshot.forEach((doc) => {
+        if (!data.find(n => n.id === doc.id)) {
+          data.push({ id: doc.id, ...doc.data() });
+        }
+      });
+      
+      data.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB - dateA;
+      });
+      
+      setNotifications(data);
+      console.log('🔔 Admin notifications:', data.length);
+    });
+
+    return () => {
+      console.log('🔴 Unsubscribing from admin notifications');
+      unsubscribe();
+    };
   }, []);
 
   // ============================================
@@ -92,24 +140,11 @@ const AdminDashboard = () => {
   };
 
   // ============================================
-  // ✅ FETCH ADMIN NOTIFICATIONS
-  // ============================================
-  const fetchNotifications = async () => {
-    try {
-      const data = await getAdminNotifications();
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('❌ Error fetching notifications:', error);
-    }
-  };
-
-  // ============================================
   // ✅ MARK NOTIFICATION AS READ
   // ============================================
   const handleMarkNotificationRead = async (notificationId) => {
     try {
       await markNotificationAsRead(notificationId);
-      fetchNotifications();
     } catch (error) {
       console.error('❌ Error marking notification:', error);
     }
@@ -220,7 +255,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* ========================================= */}
-      {/* NOTIFICATIONS SECTION */}
+      {/* NOTIFICATIONS SECTION - REAL-TIME */}
       {/* ========================================= */}
       <div className="admin-notifications-section" style={{
         background: 'white',
@@ -237,7 +272,8 @@ const AdminDashboard = () => {
               color: 'white',
               padding: '4px 12px',
               borderRadius: '20px',
-              fontSize: '14px'
+              fontSize: '14px',
+              animation: 'pulse 1s ease-in-out infinite'
             }}>
               {unreadCount} new
             </span>
@@ -260,10 +296,11 @@ const AdminDashboard = () => {
                   gap: '12px',
                   padding: '12px 15px',
                   background: !notification.read ? '#f0f7ff' : 'transparent',
+                  borderLeft: !notification.read ? '4px solid #2196F3' : '4px solid transparent',
                   borderBottom: '1px solid #f0f0f0',
                   borderRadius: '8px',
                   cursor: 'pointer',
-                  transition: 'background 0.2s'
+                  transition: 'all 0.2s'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = '#f8f9fa';

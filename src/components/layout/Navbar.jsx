@@ -32,6 +32,7 @@ const Navbar = () => {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setUnreadCount(snapshot.size);
+      console.log('🔔 Unread notifications:', snapshot.size);
     });
 
     return () => unsubscribe();

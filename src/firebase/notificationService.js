@@ -13,17 +13,13 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 
-// ❌ DELETE THIS LINE (if exists)
-// import { sendAdminEmail, sendUserEmail } from '../services/emailService';
-
 // ============================================
-// ✅ SEND NOTIFICATION TO ADMIN (ONLY IN-APP)
+// ✅ SEND NOTIFICATION TO ADMIN
 // ============================================
 export const sendAdminNotification = async (bookingData) => {
   try {
     const { bookingId, guestName, guestPhone, roomName, checkInDate, checkOutDate, totalPrice } = bookingData;
 
-    // Save to Firestore (In-App Notification)
     const notificationsRef = collection(db, 'notifications');
     await addDoc(notificationsRef, {
       bookingId: bookingId,
@@ -37,22 +33,11 @@ export const sendAdminNotification = async (bookingData) => {
       checkOutDate: checkOutDate,
       totalPrice: totalPrice,
       read: false,
-      target: 'admin',
+      target: 'admin',  // ✅ Admin target
       createdAt: serverTimestamp()
     });
 
-    // ❌ DELETE THIS EMAIL CODE
-    // await sendAdminEmail({
-    //   bookingId: bookingId,
-    //   guestName: guestName,
-    //   guestPhone: guestPhone,
-    //   roomName: roomName,
-    //   checkInDate: checkInDate,
-    //   checkOutDate: checkOutDate,
-    //   totalPrice: totalPrice
-    // });
-
-    console.log('✅ Admin notification sent');
+    console.log('✅ Admin notification sent to Firestore');
     return { success: true };
 
   } catch (error) {
@@ -62,13 +47,18 @@ export const sendAdminNotification = async (bookingData) => {
 };
 
 // ============================================
-// ✅ SEND NOTIFICATION TO USER (ONLY IN-APP)
+// ✅ SEND NOTIFICATION TO USER
 // ============================================
 export const sendUserNotification = async (bookingData) => {
   try {
     const { bookingId, userId, guestName, roomName, checkInDate, checkOutDate, totalPrice } = bookingData;
 
-    // Save to Firestore (In-App Notification)
+    // ✅ Validate userId
+    if (!userId) {
+      console.error('❌ userId is required for user notification');
+      return { success: false, error: 'userId missing' };
+    }
+
     const notificationsRef = collection(db, 'notifications');
     await addDoc(notificationsRef, {
       bookingId: bookingId,
@@ -81,23 +71,12 @@ export const sendUserNotification = async (bookingData) => {
       checkOutDate: checkOutDate,
       totalPrice: totalPrice,
       read: false,
-      target: 'user',
-      userId: userId,
+      target: 'user',  // ✅ User target
+      userId: userId,  // ✅ User ID (Important!)
       createdAt: serverTimestamp()
     });
 
-    // ❌ DELETE THIS EMAIL CODE
-    // await sendUserEmail({
-    //   bookingId: bookingId,
-    //   guestEmail: guestEmail,
-    //   guestName: guestName,
-    //   roomName: roomName,
-    //   checkInDate: checkInDate,
-    //   checkOutDate: checkOutDate,
-    //   totalPrice: totalPrice
-    // });
-
-    console.log('✅ User notification sent');
+    console.log('✅ User notification sent to Firestore');
     return { success: true };
 
   } catch (error) {
@@ -139,11 +118,16 @@ export const getAdminNotifications = async () => {
 // ============================================
 export const getUserNotifications = async (userId) => {
   try {
+    if (!userId) {
+      console.log('⚠️ No userId provided');
+      return [];
+    }
+
     const notificationsRef = collection(db, 'notifications');
     const q = query(
       notificationsRef,
       where('target', '==', 'user'),
-      where('userId', '==', userId),
+      where('userId', '==', userId),  // ✅ Filter by userId
       orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
@@ -156,6 +140,7 @@ export const getUserNotifications = async (userId) => {
       });
     });
     
+    console.log('📬 User notifications fetched:', notifications.length);
     return notifications;
   } catch (error) {
     console.error('❌ Error fetching user notifications:', error);

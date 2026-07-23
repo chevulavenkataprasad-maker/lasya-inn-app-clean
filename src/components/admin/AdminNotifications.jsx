@@ -1,19 +1,19 @@
 // src/components/admin/AdminNotifications.jsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { markNotificationAsRead } from '../../firebase/notificationService';
 import { playNotificationSound } from '../../utils/soundService';
-import './AdminNotifications.css';
 
 const AdminNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
-  const prevUnreadCount = useRef(0);
 
-  // ✅ REAL-TIME LISTENER WITH SOUND
+  // ============================================
+  // ✅ REAL-TIME LISTENER FOR ADMIN NOTIFICATIONS
+  // ============================================
   useEffect(() => {
     const q = query(
       collection(db, 'notifications'),
@@ -21,45 +21,47 @@ const AdminNotifications = () => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allData = [];
+      const data = [];
       let newCount = 0;
       
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const docData = { id: change.doc.id, ...change.doc.data() };
-          allData.push(docData);
+          data.push(docData);
           newCount++;
+          console.log('🆕 New admin notification:', docData);
         }
       });
       
       snapshot.forEach((doc) => {
-        if (!allData.find(n => n.id === doc.id)) {
-          allData.push({ id: doc.id, ...doc.data() });
+        if (!data.find(n => n.id === doc.id)) {
+          data.push({ id: doc.id, ...doc.data() });
         }
       });
       
-      // Sort by date
-      allData.sort((a, b) => {
+      data.sort((a, b) => {
         const dateA = a.createdAt?.toDate?.() || new Date(0);
         const dateB = b.createdAt?.toDate?.() || new Date(0);
         return dateB - dateA;
       });
       
-      setNotifications(allData);
+      setNotifications(data);
       
-      const unread = allData.filter(n => !n.read).length;
+      const unread = data.filter(n => !n.read).length;
       setUnreadCount(unread);
       
-      // ✅ Play sound when new notification arrives
-      if (newCount > 0 && unread > prevUnreadCount.current) {
-        playNotificationSound('admin');
-        prevUnreadCount.current = unread;
-      }
+      console.log('🔔 Admin notifications:', data.length, 'unread:', unread);
       
-      prevUnreadCount.current = unread;
+      // ✅ Play sound for new admin notifications
+      if (newCount > 0) {
+        playNotificationSound('admin');
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('🔴 Unsubscribing from admin notifications');
+      unsubscribe();
+    };
   }, []);
 
   const handleMarkRead = async (notificationId) => {
@@ -68,7 +70,6 @@ const AdminNotifications = () => {
 
   return (
     <div className="admin-notifications">
-      {/* 🔔 Bell Icon */}
       <div 
         className="notification-bell"
         onClick={() => setShowDropdown(!showDropdown)}
@@ -79,7 +80,6 @@ const AdminNotifications = () => {
         )}
       </div>
 
-      {/* Dropdown */}
       {showDropdown && (
         <div className="notification-dropdown">
           <div className="dropdown-header">

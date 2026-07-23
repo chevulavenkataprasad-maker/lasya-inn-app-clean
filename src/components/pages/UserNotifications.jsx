@@ -1,68 +1,75 @@
 // src/components/pages/UserNotifications.jsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { markNotificationAsRead } from '../../firebase/notificationService';
 import { playNotificationSound } from '../../utils/soundService';
-import './UserNotifications.css';
 
 const UserNotifications = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const prevUnreadCount = useRef(0);
 
-  // ✅ REAL-TIME LISTENER WITH SOUND
+  // ============================================
+  // ✅ REAL-TIME LISTENER FOR USER NOTIFICATIONS
+  // ============================================
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      console.log('⚠️ No user logged in');
+      return;
+    }
+
+    console.log('👤 Setting up listener for user:', user.uid);
 
     const q = query(
       collection(db, 'notifications'),
       where('target', '==', 'user'),
-      where('userId', '==', user.uid)
+      where('userId', '==', user.uid)  // ✅ Match current user
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allData = [];
+      const data = [];
       let newCount = 0;
       
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const docData = { id: change.doc.id, ...change.doc.data() };
-          allData.push(docData);
+          data.push(docData);
           newCount++;
         }
       });
       
       snapshot.forEach((doc) => {
-        if (!allData.find(n => n.id === doc.id)) {
-          allData.push({ id: doc.id, ...doc.data() });
+        if (!data.find(n => n.id === doc.id)) {
+          data.push({ id: doc.id, ...doc.data() });
         }
       });
       
-      allData.sort((a, b) => {
+      data.sort((a, b) => {
         const dateA = a.createdAt?.toDate?.() || new Date(0);
         const dateB = b.createdAt?.toDate?.() || new Date(0);
         return dateB - dateA;
       });
       
-      setNotifications(allData);
+      setNotifications(data);
       
-      const unread = allData.filter(n => !n.read).length;
+      const unread = data.filter(n => !n.read).length;
       setUnreadCount(unread);
       
-      // ✅ Play sound when new notification arrives
-      if (newCount > 0 && unread > prevUnreadCount.current) {
-        playNotificationSound('user');
-        prevUnreadCount.current = unread;
-      }
+      console.log('📬 Notifications updated:', data.length, 'unread:', unread);
       
-      prevUnreadCount.current = unread;
+      // ✅ Play sound for new notifications
+      if (newCount > 0) {
+        playNotificationSound('user');
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('🔴 Unsubscribing from user notifications');
+      unsubscribe();
+    };
   }, [user]);
 
   const handleMarkRead = async (notificationId) => {
