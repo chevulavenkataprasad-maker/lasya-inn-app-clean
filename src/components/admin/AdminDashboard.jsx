@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRooms, getAllBookings, deleteBooking } from '../../firebase/firestore';
+import { getAdminNotifications, markNotificationAsRead } from '../../firebase/notificationService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -18,6 +19,7 @@ const AdminDashboard = () => {
     totalRevenue: 0
   });
   const [recentBookings, setRecentBookings] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // ✅ Check admin session
@@ -35,6 +37,7 @@ const AdminDashboard = () => {
     
     console.log('✅ Admin logged in, fetching data');
     fetchStats();
+    fetchNotifications();
   }, []);
 
   // ============================================
@@ -88,6 +91,30 @@ const AdminDashboard = () => {
     }
   };
 
+  // ============================================
+  // ✅ FETCH ADMIN NOTIFICATIONS
+  // ============================================
+  const fetchNotifications = async () => {
+    try {
+      const data = await getAdminNotifications();
+      setNotifications(data || []);
+    } catch (error) {
+      console.error('❌ Error fetching notifications:', error);
+    }
+  };
+
+  // ============================================
+  // ✅ MARK NOTIFICATION AS READ
+  // ============================================
+  const handleMarkNotificationRead = async (notificationId) => {
+    try {
+      await markNotificationAsRead(notificationId);
+      fetchNotifications();
+    } catch (error) {
+      console.error('❌ Error marking notification:', error);
+    }
+  };
+
   // ✅ Handle logout
   const handleLogout = () => {
     localStorage.removeItem('adminLoggedIn');
@@ -111,6 +138,8 @@ const AdminDashboard = () => {
       toast.error('Failed to delete booking');
     }
   };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   if (loading) {
     return (
@@ -188,6 +217,92 @@ const AdminDashboard = () => {
             🚪 Logout
           </button>
         </div>
+      </div>
+
+      {/* ========================================= */}
+      {/* NOTIFICATIONS SECTION */}
+      {/* ========================================= */}
+      <div className="admin-notifications-section" style={{
+        background: 'white',
+        borderRadius: '16px',
+        padding: '20px',
+        marginBottom: '30px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h3 style={{ margin: 0 }}>🔔 Notifications</h3>
+          {unreadCount > 0 && (
+            <span style={{
+              background: '#dc3545',
+              color: 'white',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              fontSize: '14px'
+            }}>
+              {unreadCount} new
+            </span>
+          )}
+        </div>
+
+        {notifications.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+            <p>No notifications yet</p>
+          </div>
+        ) : (
+          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                onClick={() => handleMarkNotificationRead(notification.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  padding: '12px 15px',
+                  background: !notification.read ? '#f0f7ff' : 'transparent',
+                  borderBottom: '1px solid #f0f0f0',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f8f9fa';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = !notification.read ? '#f0f7ff' : 'transparent';
+                }}
+              >
+                <div style={{ fontSize: '24px' }}>
+                  {notification.type === 'new_booking' ? '🆕' : '✅'}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                    {notification.title}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#555' }}>
+                    {notification.message}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                    👤 {notification.guestName} • 📱 {notification.guestPhone} • 🛏️ {notification.roomName}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>
+                    {notification.createdAt?.toDate?.()?.toLocaleString() || 'Just now'}
+                  </div>
+                </div>
+                {!notification.read && (
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    background: '#2196F3',
+                    flexShrink: 0,
+                    marginTop: '8px'
+                  }} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ========================================= */}

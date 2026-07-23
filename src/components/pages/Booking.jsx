@@ -340,7 +340,7 @@ const Booking = () => {
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
 
-      // ✅ 4. Send notification to Admin
+      // ✅ 4. Send notification to Admin (Only In-App, No Email)
       await sendAdminNotification({
         bookingId: bookingId,
         guestName: formData.guestName,

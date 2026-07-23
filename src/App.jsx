@@ -20,7 +20,7 @@ import Location from './components/pages/Location';
 import Contact from './components/pages/Contact';
 import Booking from './components/pages/Booking';
 import BookingSuccess from './components/pages/BookingSuccess';
-import UserNotifications from './components/pages/UserNotifications'; // ✅ ADD THIS
+import UserNotifications from './components/pages/UserNotifications';
 
 // Admin Imports
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -55,7 +55,6 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
-          {/* Admin Login - PUBLIC (No ProtectedRoute) */}
           <Route path="/admin/login" element={<AdminLogin />} />
           
           {/* ========================================= */}
@@ -67,14 +66,12 @@ function App() {
             </ProtectedRoute>
           } />
           
-          {/* ✅ BOOKING ROUTE - WITHOUT roomId (Quick Booking from widget) */}
           <Route path="/booking" element={
             <ProtectedRoute>
               <Booking />
             </ProtectedRoute>
           } />
           
-          {/* ✅ BOOKING ROUTE - WITH ROOM ID */}
           <Route path="/booking/:roomId" element={
             <ProtectedRoute>
               <Booking />
@@ -97,28 +94,24 @@ function App() {
           {/* ========================================= */}
           {/* ADMIN ROUTES - Protected */}
           {/* ========================================= */}
-          {/* Admin Dashboard - Main route */}
           <Route path="/admin" element={
             <ProtectedRoute>
               <AdminDashboard />
             </ProtectedRoute>
           } />
           
-          {/* Admin Dashboard - Catch all admin routes */}
           <Route path="/admin/*" element={
             <ProtectedRoute>
               <AdminDashboard />
             </ProtectedRoute>
           } />
           
-          {/* Admin Rooms */}
           <Route path="/admin/rooms" element={
             <ProtectedRoute>
               <AdminRooms />
             </ProtectedRoute>
           } />
           
-          {/* Admin Bookings */}
           <Route path="/admin/bookings" element={
             <ProtectedRoute>
               <AdminBookings />

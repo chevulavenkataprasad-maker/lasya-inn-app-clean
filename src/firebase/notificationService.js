@@ -13,14 +13,17 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 
+// ❌ DELETE THIS LINE (if exists)
+// import { sendAdminEmail, sendUserEmail } from '../services/emailService';
+
 // ============================================
-// ✅ SEND NOTIFICATION TO ADMIN
+// ✅ SEND NOTIFICATION TO ADMIN (ONLY IN-APP)
 // ============================================
 export const sendAdminNotification = async (bookingData) => {
   try {
     const { bookingId, guestName, guestPhone, roomName, checkInDate, checkOutDate, totalPrice } = bookingData;
 
-    // Save to Firestore
+    // Save to Firestore (In-App Notification)
     const notificationsRef = collection(db, 'notifications');
     await addDoc(notificationsRef, {
       bookingId: bookingId,
@@ -38,6 +41,17 @@ export const sendAdminNotification = async (bookingData) => {
       createdAt: serverTimestamp()
     });
 
+    // ❌ DELETE THIS EMAIL CODE
+    // await sendAdminEmail({
+    //   bookingId: bookingId,
+    //   guestName: guestName,
+    //   guestPhone: guestPhone,
+    //   roomName: roomName,
+    //   checkInDate: checkInDate,
+    //   checkOutDate: checkOutDate,
+    //   totalPrice: totalPrice
+    // });
+
     console.log('✅ Admin notification sent');
     return { success: true };
 
@@ -48,13 +62,13 @@ export const sendAdminNotification = async (bookingData) => {
 };
 
 // ============================================
-// ✅ SEND NOTIFICATION TO USER
+// ✅ SEND NOTIFICATION TO USER (ONLY IN-APP)
 // ============================================
 export const sendUserNotification = async (bookingData) => {
   try {
     const { bookingId, userId, guestName, roomName, checkInDate, checkOutDate, totalPrice } = bookingData;
 
-    // Save to Firestore
+    // Save to Firestore (In-App Notification)
     const notificationsRef = collection(db, 'notifications');
     await addDoc(notificationsRef, {
       bookingId: bookingId,
@@ -71,6 +85,17 @@ export const sendUserNotification = async (bookingData) => {
       userId: userId,
       createdAt: serverTimestamp()
     });
+
+    // ❌ DELETE THIS EMAIL CODE
+    // await sendUserEmail({
+    //   bookingId: bookingId,
+    //   guestEmail: guestEmail,
+    //   guestName: guestName,
+    //   roomName: roomName,
+    //   checkInDate: checkInDate,
+    //   checkOutDate: checkOutDate,
+    //   totalPrice: totalPrice
+    // });
 
     console.log('✅ User notification sent');
     return { success: true };

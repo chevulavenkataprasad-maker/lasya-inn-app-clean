@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { updateBookingStatus, deleteBooking, listenToAllBookings } from '../../firebase/firestore';
-import { sendUserNotification } from '../../firebase/notificationService';
 import toast from 'react-hot-toast';
 import './AdminBookings.css';
 
@@ -41,31 +40,18 @@ const AdminBookings = () => {
   }, []);
 
   // ============================================
-  // ✅ ADMIN ACCEPT BOOKING - Send User Notification (No SMS)
+  // ✅ ADMIN ACCEPT BOOKING (NO SMS, NO EMAIL)
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
-      // 1. Update booking status
       await updateBookingStatus(bookingId, 'confirmed');
-      
-      // 2. Send notification to user (In-App only)
-      await sendUserNotification({
-        bookingId: bookingId,
-        userId: bookingData?.userId,
-        guestName: bookingData?.guestName || 'Guest',
-        guestPhone: bookingData?.guestPhone || 'N/A',
-        roomName: bookingData?.roomName || 'Room',
-        checkInDate: bookingData?.checkInDate || 'N/A',
-        checkOutDate: bookingData?.checkOutDate || 'N/A',
-        totalPrice: bookingData?.totalPrice || 0
-      });
       
       toast.success(
         (t) => (
           <div>
             <div><strong>✅ Booking Confirmed!</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
-            <div>🔔 Notification sent to user</div>
+            <div>📱 {bookingData?.guestPhone || 'N/A'}</div>
           </div>
         ),
         { duration: 5000 }
@@ -78,7 +64,7 @@ const AdminBookings = () => {
   };
 
   // ============================================
-  // ✅ ADMIN CANCEL BOOKING - Send User Notification (No SMS)
+  // ✅ ADMIN CANCEL BOOKING (NO SMS, NO EMAIL)
   // ============================================
   const handleCancelBooking = async (bookingId, bookingData) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
@@ -86,28 +72,13 @@ const AdminBookings = () => {
     }
 
     try {
-      // 1. Update booking status
       await updateBookingStatus(bookingId, 'cancelled');
-      
-      // 2. Send cancellation notification to user (In-App only)
-      await sendUserNotification({
-        bookingId: bookingId,
-        userId: bookingData?.userId,
-        guestName: bookingData?.guestName || 'Guest',
-        guestPhone: bookingData?.guestPhone || 'N/A',
-        roomName: bookingData?.roomName || 'Room',
-        checkInDate: bookingData?.checkInDate || 'N/A',
-        checkOutDate: bookingData?.checkOutDate || 'N/A',
-        totalPrice: bookingData?.totalPrice || 0,
-        type: 'booking_cancelled'
-      });
       
       toast.error(
         (t) => (
           <div>
             <div><strong>❌ Booking Cancelled</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
-            <div>🔔 Notification sent to user</div>
           </div>
         ),
         { duration: 4000 }
