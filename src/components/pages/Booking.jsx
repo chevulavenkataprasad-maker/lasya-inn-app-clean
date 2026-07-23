@@ -55,7 +55,7 @@ const Booking = () => {
     checkInDate: '',
     checkInTime: '12:00',
     checkOutDate: '',
-    checkOutTime: '12:00',  // ✅ Changed to 12:00
+    checkOutTime: '12:00',
     guests: 1,
     specialRequests: '',
     roomId: roomData.roomId || roomId || '',
@@ -64,6 +64,84 @@ const Booking = () => {
     roomType: roomData.roomType || 'ac',
     roomImage: roomData.imageUrl || ''
   });
+
+  // ============================================
+  // ✅ DATE FORMAT FUNCTIONS - DD/MM/YYYY
+  // ============================================
+  
+  // Format Date for Display: YYYY-MM-DD → DD/MM/YYYY
+  const formatDateDisplay = (dateString) => {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  };
+
+  // Format Date for Input: DD/MM/YYYY → YYYY-MM-DD
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    const parts = dateString.split('/');
+    if (parts.length !== 3) return '';
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  };
+
+  // Validate Date: DD/MM/YYYY format
+  const isValidDate = (dateString) => {
+    if (!dateString) return false;
+    const parts = dateString.split('/');
+    if (parts.length !== 3) return false;
+    const day = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    const year = parseInt(parts[2]);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+    if (month < 1 || month > 12) return false;
+    if (day < 1 || day > 31) return false;
+    if (year < 1900 || year > 2100) return false;
+    return true;
+  };
+
+  // Get today's date in DD/MM/YYYY format
+  const getTodayDate = () => {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Compare two dates in DD/MM/YYYY format
+  const isDateAfter = (date1, date2) => {
+    const d1 = formatDateForInput(date1);
+    const d2 = formatDateForInput(date2);
+    if (!d1 || !d2) return false;
+    return new Date(d1) > new Date(d2);
+  };
+
+  // ============================================
+  // ✅ HANDLE DATE CHANGE
+  // ============================================
+  const handleDateChange = (field, value) => {
+    // Allow only numbers and slashes
+    const cleaned = value.replace(/[^0-9/]/g, '');
+    
+    // Auto-format:  DD/MM/YYYY
+    let formatted = cleaned;
+    if (cleaned.length > 2 && cleaned[2] !== '/') {
+      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+    }
+    if (formatted.length > 5 && formatted[5] !== '/') {
+      formatted = formatted.slice(0, 5) + '/' + formatted.slice(5);
+    }
+    
+    // Limit to 10 characters (DD/MM/YYYY)
+    if (formatted.length > 10) {
+      formatted = formatted.slice(0, 10);
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      [field]: formatted
+    }));
+  };
 
   useEffect(() => {
     console.log('📋 Room Data from state:', roomData);
@@ -112,9 +190,13 @@ const Booking = () => {
 
   // ✅ 24 Hours Calculation
   const calculateTotal = () => {
-    if (formData.checkInDate && formData.checkInTime && formData.checkOutDate && formData.checkOutTime) {
-      const checkInDateTime = new Date(`${formData.checkInDate}T${formData.checkInTime}:00`);
-      const checkOutDateTime = new Date(`${formData.checkOutDate}T${formData.checkOutTime}:00`);
+    // Convert DD/MM/YYYY to YYYY-MM-DD for calculation
+    const checkInDate = formatDateForInput(formData.checkInDate);
+    const checkOutDate = formatDateForInput(formData.checkOutDate);
+    
+    if (checkInDate && checkOutDate && formData.checkInTime && formData.checkOutTime) {
+      const checkInDateTime = new Date(`${checkInDate}T${formData.checkInTime}:00`);
+      const checkOutDateTime = new Date(`${checkOutDate}T${formData.checkOutTime}:00`);
       
       const diffMs = checkOutDateTime - checkInDateTime;
       const diffHours = diffMs / (1000 * 60 * 60);
@@ -177,9 +259,17 @@ const Booking = () => {
       return;
     }
     
+    // Validate date format
+    if (!isValidDate(formData.checkInDate) || !isValidDate(formData.checkOutDate)) {
+      toast.error('Please enter valid dates in DD/MM/YYYY format');
+      return;
+    }
+    
     // Check if check-out is after check-in
-    const checkInDateTime = new Date(`${formData.checkInDate}T${formData.checkInTime}:00`);
-    const checkOutDateTime = new Date(`${formData.checkOutDate}T${formData.checkOutTime}:00`);
+    const checkInDate = formatDateForInput(formData.checkInDate);
+    const checkOutDate = formatDateForInput(formData.checkOutDate);
+    const checkInDateTime = new Date(`${checkInDate}T${formData.checkInTime}:00`);
+    const checkOutDateTime = new Date(`${checkOutDate}T${formData.checkOutTime}:00`);
     if (checkOutDateTime <= checkInDateTime) {
       toast.error('Check-out must be after check-in');
       return;
@@ -229,7 +319,7 @@ const Booking = () => {
         isAvailable: newAvailable > 0
       });
 
-      // ✅ 3. Create booking
+      // ✅ 3. Create booking (store dates in YYYY-MM-DD format in Firestore)
       const bookingData = {
         userId: user.uid,
         userName: user.displayName || 'Guest',
@@ -247,9 +337,9 @@ const Booking = () => {
         aadharNumber: formData.aadharNumber,
         aadharName: formData.aadharName,
         aadharPhoto: aadharUrl,
-        checkInDate: formData.checkInDate,
+        checkInDate: formatDateForInput(formData.checkInDate), // Store as YYYY-MM-DD
         checkInTime: formData.checkInTime,
-        checkOutDate: formData.checkOutDate,
+        checkOutDate: formatDateForInput(formData.checkOutDate), // Store as YYYY-MM-DD
         checkOutTime: formData.checkOutTime,
         guests: formData.guests,
         specialRequests: formData.specialRequests,
@@ -518,7 +608,6 @@ const Booking = () => {
               )}
               <div className="room-info">
                 <h4>{formData.roomName}</h4>
-                {/* ✅ Changed: / night → / 24 hours */}
                 <p>₹{formData.roomPrice} <span>/ 24 hours</span></p>
                 <p className="room-type">{formData.roomType === 'ac' ? '❄️ AC Room' : '🌬️ Non-AC Room'}</p>
               </div>
@@ -531,12 +620,15 @@ const Booking = () => {
               <div>
                 <label>Check-in Date <span className="required">*</span></label>
                 <input
-                  type="date"
+                  type="text"
+                  placeholder="DD/MM/YYYY"
                   value={formData.checkInDate}
-                  onChange={(e) => setFormData({...formData, checkInDate: e.target.value})}
+                  onChange={(e) => handleDateChange('checkInDate', e.target.value)}
                   required
-                  min={new Date().toISOString().split('T')[0]}
                 />
+                <small style={{ color: '#888', fontSize: '12px' }}>
+                  Format: DD/MM/YYYY (e.g., 25/07/2026)
+                </small>
               </div>
               <div>
                 <label>Check-in Time <span className="required">*</span></label>
@@ -552,12 +644,15 @@ const Booking = () => {
               <div>
                 <label>Check-out Date <span className="required">*</span></label>
                 <input
-                  type="date"
+                  type="text"
+                  placeholder="DD/MM/YYYY"
                   value={formData.checkOutDate}
-                  onChange={(e) => setFormData({...formData, checkOutDate: e.target.value})}
+                  onChange={(e) => handleDateChange('checkOutDate', e.target.value)}
                   required
-                  min={formData.checkInDate || new Date().toISOString().split('T')[0]}
                 />
+                <small style={{ color: '#888', fontSize: '12px' }}>
+                  Format: DD/MM/YYYY (e.g., 26/07/2026)
+                </small>
               </div>
               <div>
                 <label>Check-out Time <span className="required">*</span></label>
@@ -730,13 +825,11 @@ const Booking = () => {
             />
           </div>
 
-          {/* ✅ Booking Summary with 24 hours */}
           <div className="booking-section-pro amount-summary-pro">
             <h3>💰 Booking Summary</h3>
             <div className="amount-details">
               <div className="amount-row">
                 <span>Room: {formData.roomName}</span>
-                {/* ✅ Changed: /night → /24 hours */}
                 <span>₹{formData.roomPrice}/24 hours</span>
               </div>
               <div className="amount-row">
