@@ -20,6 +20,7 @@ import Location from './components/pages/Location';
 import Contact from './components/pages/Contact';
 import Booking from './components/pages/Booking';
 import BookingSuccess from './components/pages/BookingSuccess';
+import UserNotifications from './components/pages/UserNotifications'; // ✅ ADD THIS
 
 // Admin Imports
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -83,6 +84,13 @@ function App() {
           <Route path="/booking-success" element={
             <ProtectedRoute>
               <BookingSuccess />
+            </ProtectedRoute>
+          } />
+
+          {/* ✅ USER NOTIFICATIONS ROUTE */}
+          <Route path="/notifications" element={
+            <ProtectedRoute>
+              <UserNotifications />
             </ProtectedRoute>
           } />
 

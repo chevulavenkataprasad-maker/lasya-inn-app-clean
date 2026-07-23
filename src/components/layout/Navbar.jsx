@@ -1,15 +1,41 @@
-// src/components/layout/Navbar.js
+// src/components/layout/Navbar.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { logoutUser } from '../../firebase/auth';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import toast from 'react-hot-toast';
 
 const Navbar = () => {
   const { user } = useAuth();
   const location = useLocation();
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // ============================================
+  // ✅ REAL-TIME NOTIFICATION COUNT FOR USER
+  // ============================================
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('target', '==', 'user'),
+      where('userId', '==', user.uid),
+      where('read', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setUnreadCount(snapshot.size);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const navLinks = [
     { path: '/', icon: '🏠', label: 'Home' },
@@ -94,6 +120,27 @@ const Navbar = () => {
                   ⚙️ Admin
                 </Link>
               )}
+              {/* ✅ Notifications Bell with Badge */}
+              <Link to="/notifications" className="nav-btn-pro notification-btn" style={{ position: 'relative' }}>
+                🔔
+                {unreadCount > 0 && (
+                  <span className="nav-notification-badge" style={{
+                    position: 'absolute',
+                    top: '-5px',
+                    right: '-8px',
+                    background: '#f44336',
+                    color: 'white',
+                    borderRadius: '50%',
+                    padding: '2px 7px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    minWidth: '18px',
+                    textAlign: 'center'
+                  }}>
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
               <Link to="/booking" className="nav-btn-pro book-btn">
                 📅 BOOK NOW
               </Link>
@@ -103,7 +150,6 @@ const Navbar = () => {
             </>
           ) : (
             <>
-              {/* ✅ All three buttons */}
               <Link to="/admin/login" className="nav-btn-pro admin-btn">
                 🔐 Admin Login
               </Link>
@@ -150,6 +196,22 @@ const Navbar = () => {
                 ⚙️ Admin
               </Link>
             )}
+            {/* ✅ Notifications in Mobile Menu */}
+            <Link to="/notifications" className="mobile-link-pro" onClick={() => setMobileMenu(false)}>
+              🔔 Notifications
+              {unreadCount > 0 && (
+                <span className="mobile-notification-badge" style={{
+                  background: '#f44336',
+                  color: 'white',
+                  borderRadius: '50%',
+                  padding: '2px 8px',
+                  fontSize: '12px',
+                  marginLeft: '8px'
+                }}>
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
             <Link to="/booking" className="mobile-link-pro book-link" onClick={() => setMobileMenu(false)}>
               📅 BOOK NOW
             </Link>

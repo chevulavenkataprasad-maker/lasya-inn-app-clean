@@ -1,0 +1,103 @@
+/* src/components/pages/UserNotifications.css */
+
+.user-notifications-page {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #eee;
+}
+
+.notifications-header h3 {
+  font-size: 24px;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.unread-badge {
+  background: #4CAF50;
+  color: white;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.notification-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.notification-item.unread {
+  border-left: 4px solid #2196F3;
+  background: #f0f7ff;
+}
+
+.notification-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #1a1a2e;
+}
+
+.notification-message {
+  font-size: 14px;
+  color: #555;
+  margin: 4px 0;
+}
+
+.notification-details {
+  display: flex;
+  gap: 15px;
+  font-size: 13px;
+  color: #888;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.notification-time {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 4px;
+}
+
+.unread-dot {
+  color: #2196F3;
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.no-notifications {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+}
