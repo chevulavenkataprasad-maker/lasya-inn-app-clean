@@ -269,7 +269,7 @@ const Home = () => {
   };
 
   // ============================================
-  // ✅ RENDER AVAILABLE ROOMS
+  // ✅ RENDER AVAILABLE ROOMS - 24 HOURS
   // ============================================
   const renderAvailableRooms = () => {
     const availableRooms = getAvailableRooms();
@@ -336,7 +336,8 @@ const Home = () => {
                   {isAvailable ? '🟢' : '🔴'} {availableCount} rooms available
                 </span>
               </div>
-              <p className="room-price">₹{room.price} <span>/ Night</span></p>
+              {/* ✅ CHANGED: / Night → / 24 hours */}
+              <p className="room-price">₹{room.price} <span>/ 24 hours</span></p>
               <Link 
                 to={isAvailable ? `/booking/${room.id}` : '#'} 
                 state={{ 
@@ -402,7 +403,7 @@ const Home = () => {
           </div>
           <div className="hero-buttons">
             <Link to="/rooms" className="btn-primary">VIEW ROOMS</Link>
-            <a href="tel:+911234567890" className="btn-secondary">CALL NOW</a>
+            <a href="tel:+919108217506" className="btn-secondary">CALL NOW</a>
           </div>
         </div>
       </section>
