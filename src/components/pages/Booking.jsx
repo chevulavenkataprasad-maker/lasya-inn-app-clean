@@ -36,6 +36,13 @@ const Booking = () => {
   const [savedBookingId, setSavedBookingId] = useState(null);
   const [savedBookingData, setSavedBookingData] = useState(null);
 
+  // ✅ Set room price based on type
+  const getRoomPrice = (type) => {
+    if (type === 'ac') return 1500;
+    if (type === 'non-ac') return 1200;
+    return 1200;
+  };
+
   const [formData, setFormData] = useState({
     guestName: user?.displayName || '',
     guestEmail: user?.email || '',
@@ -48,12 +55,12 @@ const Booking = () => {
     checkInDate: '',
     checkInTime: '12:00',
     checkOutDate: '',
-    checkOutTime: '11:00',
+    checkOutTime: '12:00',  // ✅ Changed to 12:00
     guests: 1,
     specialRequests: '',
     roomId: roomData.roomId || roomId || '',
     roomName: roomData.roomName || 'Deluxe AC Room',
-    roomPrice: roomData.roomPrice || 1200,
+    roomPrice: roomData.roomPrice || getRoomPrice(roomData.roomType || 'ac'),
     roomType: roomData.roomType || 'ac',
     roomImage: roomData.imageUrl || ''
   });
@@ -71,11 +78,12 @@ const Booking = () => {
     try {
       const room = await getRoom(id);
       if (room) {
+        const price = room.type === 'ac' ? 1500 : 1200;
         setFormData(prev => ({
           ...prev,
           roomId: room.id,
           roomName: room.name || 'Deluxe AC Room',
-          roomPrice: room.price || 1200,
+          roomPrice: room.price || price,
           roomType: room.type || 'ac',
           roomImage: room.image || ''
         }));
@@ -102,20 +110,36 @@ const Booking = () => {
     { id: 'yes', name: 'Yes Bank' }
   ];
 
+  // ✅ 24 Hours Calculation
   const calculateTotal = () => {
-    if (formData.checkInDate && formData.checkOutDate) {
-      const checkIn = new Date(formData.checkInDate);
-      const checkOut = new Date(formData.checkOutDate);
-      const days = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-      return days > 0 ? days * (formData.roomPrice || 1200) : formData.roomPrice || 1200;
+    if (formData.checkInDate && formData.checkInTime && formData.checkOutDate && formData.checkOutTime) {
+      const checkInDateTime = new Date(`${formData.checkInDate}T${formData.checkInTime}:00`);
+      const checkOutDateTime = new Date(`${formData.checkOutDate}T${formData.checkOutTime}:00`);
+      
+      const diffMs = checkOutDateTime - checkInDateTime;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      
+      if (diffHours <= 0) {
+        return { total: 0, totalDays: 0, totalHours: 0 };
+      }
+      
+      const days = Math.ceil(diffHours / 24);
+      const totalDays = days > 0 ? days : 1;
+      const total = totalDays * (formData.roomPrice || 1200);
+      
+      return {
+        total: total,
+        totalDays: totalDays,
+        totalHours: diffHours
+      };
     }
-    return formData.roomPrice || 1200;
+    return { total: formData.roomPrice || 1200, totalDays: 1, totalHours: 24 };
   };
 
-  const totalAmount = calculateTotal();
-  const totalDays = formData.checkInDate && formData.checkOutDate 
-    ? Math.ceil((new Date(formData.checkOutDate) - new Date(formData.checkInDate)) / (1000 * 60 * 60 * 24))
-    : 1;
+  const calculateResult = calculateTotal();
+  const totalAmount = calculateResult.total;
+  const totalDays = calculateResult.totalDays;
+  const totalHours = Math.round(calculateResult.totalHours);
 
   // ============================================
   // ✅ HANDLE FORM SUBMIT - With Room Availability
@@ -148,6 +172,19 @@ const Booking = () => {
       toast.error('Please select check-in and check-out dates');
       return;
     }
+    if (!formData.checkInTime || !formData.checkOutTime) {
+      toast.error('Please select check-in and check-out time');
+      return;
+    }
+    
+    // Check if check-out is after check-in
+    const checkInDateTime = new Date(`${formData.checkInDate}T${formData.checkInTime}:00`);
+    const checkOutDateTime = new Date(`${formData.checkOutDate}T${formData.checkOutTime}:00`);
+    if (checkOutDateTime <= checkInDateTime) {
+      toast.error('Check-out must be after check-in');
+      return;
+    }
+    
     if (!aadharFile) {
       toast.error('Please upload Aadhar card photo');
       return;
@@ -216,6 +253,7 @@ const Booking = () => {
         checkOutTime: formData.checkOutTime,
         guests: formData.guests,
         specialRequests: formData.specialRequests,
+        totalHours: totalHours,
         totalDays: totalDays,
         totalPrice: totalAmount,
         status: 'pending',
@@ -480,7 +518,8 @@ const Booking = () => {
               )}
               <div className="room-info">
                 <h4>{formData.roomName}</h4>
-                <p>₹{formData.roomPrice} <span>/ night</span></p>
+                {/* ✅ Changed: / night → / 24 hours */}
+                <p>₹{formData.roomPrice} <span>/ 24 hours</span></p>
                 <p className="room-type">{formData.roomType === 'ac' ? '❄️ AC Room' : '🌬️ Non-AC Room'}</p>
               </div>
             </div>
@@ -691,16 +730,18 @@ const Booking = () => {
             />
           </div>
 
+          {/* ✅ Booking Summary with 24 hours */}
           <div className="booking-section-pro amount-summary-pro">
             <h3>💰 Booking Summary</h3>
             <div className="amount-details">
               <div className="amount-row">
                 <span>Room: {formData.roomName}</span>
-                <span>₹{formData.roomPrice}/night</span>
+                {/* ✅ Changed: /night → /24 hours */}
+                <span>₹{formData.roomPrice}/24 hours</span>
               </div>
               <div className="amount-row">
-                <span>Total Days: {totalDays}</span>
-                <span>₹{totalAmount}</span>
+                <span>Total Hours: {totalHours} hours</span>
+                <span>{totalDays} day(s)</span>
               </div>
               <div className="amount-row total">
                 <span><strong>Total Amount</strong></span>
