@@ -66,16 +66,9 @@ const Booking = () => {
   });
 
   // ============================================
-  // ✅ DATE FORMAT FUNCTIONS - DD/MM/YYYY
+  // ✅ DATE FORMAT FUNCTIONS
   // ============================================
   
-  // Format Date for Display: YYYY-MM-DD → DD/MM/YYYY
-  const formatDateDisplay = (dateString) => {
-    if (!dateString) return '';
-    const parts = dateString.split('-');
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  };
-
   // Format Date for Input: DD/MM/YYYY → YYYY-MM-DD
   const formatDateForInput = (dateString) => {
     if (!dateString) return '';
@@ -84,7 +77,7 @@ const Booking = () => {
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
   };
 
-  // Validate Date: DD/MM/YYYY format
+  // Validate Date
   const isValidDate = (dateString) => {
     if (!dateString) return false;
     const parts = dateString.split('/');
@@ -99,7 +92,7 @@ const Booking = () => {
     return true;
   };
 
-  // Get today's date in YYYY-MM-DD format for input
+  // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -108,8 +101,15 @@ const Booking = () => {
     return `${year}-${month}-${day}`;
   };
 
+  // Get date in DD/MM/YYYY format for display
+  const formatDateDisplay = (dateString) => {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  };
+
   // ============================================
-  // ✅ HANDLE DATE CHANGE - With Calendar
+  // ✅ HANDLE DATE CHANGE
   // ============================================
   const handleDateChange = (field, value) => {
     setFormData(prev => ({
@@ -163,23 +163,33 @@ const Booking = () => {
     { id: 'yes', name: 'Yes Bank' }
   ];
 
-  // ✅ 24 Hours Calculation
+  // ============================================
+  // ✅ 24 HOURS CALCULATION - UPDATED
+  // ============================================
   const calculateTotal = () => {
-    // Convert DD/MM/YYYY to YYYY-MM-DD for calculation
-    const checkInDate = formatDateForInput(formData.checkInDate);
-    const checkOutDate = formatDateForInput(formData.checkOutDate);
+    // Get dates in YYYY-MM-DD format
+    const checkInDate = formData.checkInDate; // Already YYYY-MM-DD from date input
+    const checkOutDate = formData.checkOutDate;
     
     if (checkInDate && checkOutDate && formData.checkInTime && formData.checkOutTime) {
       const checkInDateTime = new Date(`${checkInDate}T${formData.checkInTime}:00`);
       const checkOutDateTime = new Date(`${checkOutDate}T${formData.checkOutTime}:00`);
       
+      // Calculate difference in hours
       const diffMs = checkOutDateTime - checkInDateTime;
       const diffHours = diffMs / (1000 * 60 * 60);
       
+      // If check-out is before or same as check-in
       if (diffHours <= 0) {
-        return { total: 0, totalDays: 0, totalHours: 0 };
+        return { 
+          total: 0, 
+          totalDays: 0, 
+          totalHours: 0, 
+          error: 'Check-out must be after check-in' 
+        };
       }
       
+      // Calculate number of 24-hour blocks
       const days = Math.ceil(diffHours / 24);
       const totalDays = days > 0 ? days : 1;
       const total = totalDays * (formData.roomPrice || 1200);
@@ -187,10 +197,16 @@ const Booking = () => {
       return {
         total: total,
         totalDays: totalDays,
-        totalHours: diffHours
+        totalHours: diffHours,
+        error: null
       };
     }
-    return { total: formData.roomPrice || 1200, totalDays: 1, totalHours: 24 };
+    return { 
+      total: formData.roomPrice || 1200, 
+      totalDays: 1, 
+      totalHours: 24,
+      error: null 
+    };
   };
 
   const calculateResult = calculateTotal();
@@ -199,7 +215,7 @@ const Booking = () => {
   const totalHours = Math.round(calculateResult.totalHours);
 
   // ============================================
-  // ✅ HANDLE FORM SUBMIT - With Room Availability
+  // ✅ HANDLE FORM SUBMIT
   // ============================================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -234,17 +250,9 @@ const Booking = () => {
       return;
     }
     
-    // Validate date format
-    if (!isValidDate(formData.checkInDate) || !isValidDate(formData.checkOutDate)) {
-      toast.error('Please enter valid dates in DD/MM/YYYY format');
-      return;
-    }
-    
     // Check if check-out is after check-in
-    const checkInDate = formatDateForInput(formData.checkInDate);
-    const checkOutDate = formatDateForInput(formData.checkOutDate);
-    const checkInDateTime = new Date(`${checkInDate}T${formData.checkInTime}:00`);
-    const checkOutDateTime = new Date(`${checkOutDate}T${formData.checkOutTime}:00`);
+    const checkInDateTime = new Date(`${formData.checkInDate}T${formData.checkInTime}:00`);
+    const checkOutDateTime = new Date(`${formData.checkOutDate}T${formData.checkOutTime}:00`);
     if (checkOutDateTime <= checkInDateTime) {
       toast.error('Check-out must be after check-in');
       return;
@@ -294,7 +302,7 @@ const Booking = () => {
         isAvailable: newAvailable > 0
       });
 
-      // ✅ 3. Create booking (store dates in YYYY-MM-DD format in Firestore)
+      // ✅ 3. Create booking
       const bookingData = {
         userId: user.uid,
         userName: user.displayName || 'Guest',
@@ -312,9 +320,9 @@ const Booking = () => {
         aadharNumber: formData.aadharNumber,
         aadharName: formData.aadharName,
         aadharPhoto: aadharUrl,
-        checkInDate: formatDateForInput(formData.checkInDate), // Store as YYYY-MM-DD
+        checkInDate: formData.checkInDate,
         checkInTime: formData.checkInTime,
-        checkOutDate: formatDateForInput(formData.checkOutDate), // Store as YYYY-MM-DD
+        checkOutDate: formData.checkOutDate,
         checkOutTime: formData.checkOutTime,
         guests: formData.guests,
         specialRequests: formData.specialRequests,
@@ -346,7 +354,7 @@ const Booking = () => {
   };
 
   // ============================================
-  // ✅ HANDLE PAYMENT - No auto-confirm
+  // ✅ HANDLE PAYMENT
   // ============================================
   const handlePayment = async () => {
     if (!selectedMethod) {
@@ -594,7 +602,6 @@ const Booking = () => {
             <div className="booking-grid-pro">
               <div>
                 <label>Check-in Date <span className="required">*</span></label>
-                {/* ✅ Calendar Input - DD/MM/YYYY format */}
                 <input
                   type="date"
                   value={formData.checkInDate}
@@ -619,7 +626,6 @@ const Booking = () => {
               </div>
               <div>
                 <label>Check-out Date <span className="required">*</span></label>
-                {/* ✅ Calendar Input - DD/MM/YYYY format */}
                 <input
                   type="date"
                   value={formData.checkOutDate}
@@ -802,12 +808,19 @@ const Booking = () => {
             />
           </div>
 
+          {/* ✅ Booking Summary with 24 hours calculation */}
           <div className="booking-section-pro amount-summary-pro">
             <h3>💰 Booking Summary</h3>
             <div className="amount-details">
               <div className="amount-row">
                 <span>Room: {formData.roomName}</span>
                 <span>₹{formData.roomPrice}/24 hours</span>
+              </div>
+              <div className="amount-row">
+                <span>Check-in: {formData.checkInDate ? formatDateDisplay(formData.checkInDate) : 'N/A'} at {formData.checkInTime}</span>
+              </div>
+              <div className="amount-row">
+                <span>Check-out: {formData.checkOutDate ? formatDateDisplay(formData.checkOutDate) : 'N/A'} at {formData.checkOutTime}</span>
               </div>
               <div className="amount-row">
                 <span>Total Hours: {totalHours} hours</span>
