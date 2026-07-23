@@ -99,47 +99,22 @@ const Booking = () => {
     return true;
   };
 
-  // Get today's date in DD/MM/YYYY format
+  // Get today's date in YYYY-MM-DD format for input
   const getTodayDate = () => {
     const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
     const year = today.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
-  // Compare two dates in DD/MM/YYYY format
-  const isDateAfter = (date1, date2) => {
-    const d1 = formatDateForInput(date1);
-    const d2 = formatDateForInput(date2);
-    if (!d1 || !d2) return false;
-    return new Date(d1) > new Date(d2);
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   // ============================================
-  // ✅ HANDLE DATE CHANGE
+  // ✅ HANDLE DATE CHANGE - With Calendar
   // ============================================
   const handleDateChange = (field, value) => {
-    // Allow only numbers and slashes
-    const cleaned = value.replace(/[^0-9/]/g, '');
-    
-    // Auto-format:  DD/MM/YYYY
-    let formatted = cleaned;
-    if (cleaned.length > 2 && cleaned[2] !== '/') {
-      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
-    }
-    if (formatted.length > 5 && formatted[5] !== '/') {
-      formatted = formatted.slice(0, 5) + '/' + formatted.slice(5);
-    }
-    
-    // Limit to 10 characters (DD/MM/YYYY)
-    if (formatted.length > 10) {
-      formatted = formatted.slice(0, 10);
-    }
-    
     setFormData(prev => ({
       ...prev,
-      [field]: formatted
+      [field]: value
     }));
   };
 
@@ -619,15 +594,16 @@ const Booking = () => {
             <div className="booking-grid-pro">
               <div>
                 <label>Check-in Date <span className="required">*</span></label>
+                {/* ✅ Calendar Input - DD/MM/YYYY format */}
                 <input
-                  type="text"
-                  placeholder="DD/MM/YYYY"
+                  type="date"
                   value={formData.checkInDate}
                   onChange={(e) => handleDateChange('checkInDate', e.target.value)}
                   required
+                  min={getTodayDate()}
                 />
                 <small style={{ color: '#888', fontSize: '12px' }}>
-                  Format: DD/MM/YYYY (e.g., 25/07/2026)
+                  Select check-in date
                 </small>
               </div>
               <div>
@@ -643,15 +619,16 @@ const Booking = () => {
               </div>
               <div>
                 <label>Check-out Date <span className="required">*</span></label>
+                {/* ✅ Calendar Input - DD/MM/YYYY format */}
                 <input
-                  type="text"
-                  placeholder="DD/MM/YYYY"
+                  type="date"
                   value={formData.checkOutDate}
                   onChange={(e) => handleDateChange('checkOutDate', e.target.value)}
                   required
+                  min={formData.checkInDate || getTodayDate()}
                 />
                 <small style={{ color: '#888', fontSize: '12px' }}>
-                  Format: DD/MM/YYYY (e.g., 26/07/2026)
+                  Select check-out date
                 </small>
               </div>
               <div>
