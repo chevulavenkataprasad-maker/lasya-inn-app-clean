@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { updateBookingStatus, deleteBooking, listenToAllBookings } from '../../firebase/firestore';
+import { sendUserNotification, sendSMS } from '../../firebase/notificationService';
 import toast from 'react-hot-toast';
 import './AdminBookings.css';
 
@@ -40,22 +41,52 @@ const AdminBookings = () => {
   }, []);
 
   // ============================================
-  // ✅ ADMIN ACCEPT BOOKING
+  // ✅ ADMIN ACCEPT BOOKING - Send User Notification
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
+      // 1. Update booking status
       await updateBookingStatus(bookingId, 'confirmed');
+      
+      // 2. Send notification to user
+      await sendUserNotification({
+        bookingId: bookingId,
+        userId: bookingData?.userId,
+        guestName: bookingData?.guestName || 'Guest',
+        guestPhone: bookingData?.guestPhone || 'N/A',
+        roomName: bookingData?.roomName || 'Room',
+        checkInDate: bookingData?.checkInDate || 'N/A',
+        checkOutDate: bookingData?.checkOutDate || 'N/A',
+        totalPrice: bookingData?.totalPrice || 0
+      });
+
+      // 3. Send SMS to user
+      const smsMessage = `
+🏨 Booking Confirmed! ✅
+
+👤 Guest: ${bookingData?.guestName || 'Guest'}
+🛏️ Room: ${bookingData?.roomName || 'Room'}
+📅 Check-in: ${bookingData?.checkInDate || 'N/A'}
+📅 Check-out: ${bookingData?.checkOutDate || 'N/A'}
+💰 Total: ₹${bookingData?.totalPrice || 0}
+
+✅ Your booking has been confirmed!
+Thank you for choosing us! 🙏
+      `.trim();
+
+      await sendSMS(bookingData?.guestPhone, smsMessage);
       
       toast.success(
         (t) => (
           <div>
             <div><strong>✅ Booking Confirmed!</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
-            <div>📱 {bookingData?.guestPhone || 'N/A'}</div>
+            <div>📱 SMS sent to {bookingData?.guestPhone || 'N/A'}</div>
           </div>
         ),
         { duration: 5000 }
       );
+      
     } catch (error) {
       console.error('❌ Accept error:', error);
       toast.error('Failed to accept booking');
@@ -63,7 +94,7 @@ const AdminBookings = () => {
   };
 
   // ============================================
-  // ✅ ADMIN CANCEL BOOKING - NO RESTORE
+  // ✅ ADMIN CANCEL BOOKING - Send User Notification
   // ============================================
   const handleCancelBooking = async (bookingId, bookingData) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
@@ -71,18 +102,47 @@ const AdminBookings = () => {
     }
 
     try {
+      // 1. Update booking status
       await updateBookingStatus(bookingId, 'cancelled');
+      
+      // 2. Send cancellation notification to user
+      await sendUserNotification({
+        bookingId: bookingId,
+        userId: bookingData?.userId,
+        guestName: bookingData?.guestName || 'Guest',
+        guestPhone: bookingData?.guestPhone || 'N/A',
+        roomName: bookingData?.roomName || 'Room',
+        checkInDate: bookingData?.checkInDate || 'N/A',
+        checkOutDate: bookingData?.checkOutDate || 'N/A',
+        totalPrice: bookingData?.totalPrice || 0,
+        type: 'booking_cancelled'
+      });
+
+      // 3. Send cancellation SMS to user
+      const smsMessage = `
+❌ Booking Cancelled
+
+👤 Guest: ${bookingData?.guestName || 'Guest'}
+🛏️ Room: ${bookingData?.roomName || 'Room'}
+📅 Check-in: ${bookingData?.checkInDate || 'N/A'}
+
+Your booking has been cancelled.
+For any queries, please contact us. 🙏
+      `.trim();
+
+      await sendSMS(bookingData?.guestPhone, smsMessage);
       
       toast.error(
         (t) => (
           <div>
             <div><strong>❌ Booking Cancelled</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
-            <div>⚠️ Room availability must be updated manually via Edit Room</div>
+            <div>📱 SMS sent to {bookingData?.guestPhone || 'N/A'}</div>
           </div>
         ),
         { duration: 4000 }
       );
+      
     } catch (error) {
       console.error('❌ Cancel error:', error);
       toast.error('Failed to cancel booking');

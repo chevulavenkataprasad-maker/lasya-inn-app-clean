@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { addBooking, updateRoom, getRoom } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
 import { initiatePayment } from '../../services/paymentService';
+import { sendAdminNotification } from '../../firebase/notificationService';
 import toast from 'react-hot-toast';
 import './Booking.css';
 
@@ -164,11 +165,11 @@ const Booking = () => {
   ];
 
   // ============================================
-  // ✅ 24 HOURS CALCULATION - UPDATED
+  // ✅ 24 HOURS CALCULATION
   // ============================================
   const calculateTotal = () => {
     // Get dates in YYYY-MM-DD format
-    const checkInDate = formData.checkInDate; // Already YYYY-MM-DD from date input
+    const checkInDate = formData.checkInDate;
     const checkOutDate = formData.checkOutDate;
     
     if (checkInDate && checkOutDate && formData.checkInTime && formData.checkOutTime) {
@@ -215,7 +216,7 @@ const Booking = () => {
   const totalHours = Math.round(calculateResult.totalHours);
 
   // ============================================
-  // ✅ HANDLE FORM SUBMIT
+  // ✅ HANDLE FORM SUBMIT - With Admin Notification
   // ============================================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -339,11 +340,22 @@ const Booking = () => {
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
 
+      // ✅ 4. Send notification to Admin
+      await sendAdminNotification({
+        bookingId: bookingId,
+        guestName: formData.guestName,
+        guestPhone: formData.guestPhone,
+        roomName: formData.roomName,
+        checkInDate: formData.checkInDate,
+        checkOutDate: formData.checkOutDate,
+        totalPrice: totalAmount
+      });
+
       setSavedBookingId(bookingId);
       setSavedBookingData(bookingData);
       setShowPayment(true);
 
-      toast.success('📋 Booking details saved! Please complete payment.');
+      toast.success('📋 Booking details saved! Admin notified.');
 
     } catch (error) {
       console.error('❌ Booking error:', error);
@@ -808,7 +820,6 @@ const Booking = () => {
             />
           </div>
 
-          {/* ✅ Booking Summary with 24 hours calculation */}
           <div className="booking-section-pro amount-summary-pro">
             <h3>💰 Booking Summary</h3>
             <div className="amount-details">
