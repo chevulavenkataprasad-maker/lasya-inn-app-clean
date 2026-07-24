@@ -63,21 +63,25 @@ export const sendAdminEmail = async (data) => {
 };
 
 // ============================================
-// ✅ SEND EMAIL TO USER (Booking Confirmed)
+// ✅ SEND EMAIL TO USER (Booking Confirmed) - FIXED
 // ============================================
 export const sendUserEmail = async (data) => {
   try {
     console.log('📧 Sending user email...');
     console.log('📧 User Email Data:', data);
 
-    // ✅ Check if guestEmail exists
-    if (!data.guestEmail || data.guestEmail === '') {
-      console.error('❌ No guestEmail provided');
-      return { success: false, error: 'No guestEmail provided' };
+    // ✅ Check if guestEmail exists and not empty
+    if (!data.guestEmail || data.guestEmail.trim() === '') {
+      console.error('❌ No guestEmail provided or empty');
+      return { success: false, error: 'No guestEmail provided or empty' };
     }
 
+    // ✅ Clean email (remove spaces)
+    const cleanEmail = data.guestEmail.trim();
+    console.log('📧 Clean Email:', cleanEmail);
+
     const templateParams = {
-      to_email: data.guestEmail,
+      to_email: cleanEmail,  // ✅ Use clean email
       from_name: 'Lasya Inn Rooms',
       guest_name: data.guestName || 'Guest',
       guest_phone: data.guestPhone || 'N/A',
@@ -95,7 +99,7 @@ export const sendUserEmail = async (data) => {
     console.log('📧 To Email:', templateParams.to_email);
 
     const result = await emailjs.send(SERVICE_ID, USER_TEMPLATE, templateParams);
-    console.log('✅ User email sent to:', data.guestEmail);
+    console.log('✅ User email sent to:', cleanEmail);
     console.log('✅ Email response:', result.text);
     return { success: true, messageId: result.text };
 

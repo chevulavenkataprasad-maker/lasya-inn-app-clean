@@ -52,6 +52,8 @@ const AdminBookings = () => {
       console.log('📋 Accepting booking:', bookingData);
       console.log('👤 User ID for notification:', bookingData?.userId);
       console.log('📧 Guest Email:', bookingData?.guestEmail);
+      console.log('📧 Guest Email Type:', typeof bookingData?.guestEmail);
+      console.log('📧 Guest Email Length:', bookingData?.guestEmail?.length);
       
       // 2. Send In-App notification to user
       if (bookingData?.userId) {
@@ -70,13 +72,15 @@ const AdminBookings = () => {
         console.warn('⚠️ No userId found in booking data');
       }
 
-      // 3. Send Email to user - ✅ FIXED
-      if (bookingData?.guestEmail && bookingData.guestEmail !== '') {
-        console.log('📧 Sending email to:', bookingData.guestEmail);
+      // 3. Send Email to user - ✅ FIXED with validation
+      const guestEmail = bookingData?.guestEmail;
+      if (guestEmail && guestEmail.trim() !== '') {
+        const cleanEmail = guestEmail.trim();
+        console.log('📧 Sending email to:', cleanEmail);
         
         const emailResult = await sendUserEmail({
           bookingId: bookingId,
-          guestEmail: bookingData.guestEmail,
+          guestEmail: cleanEmail,
           guestName: bookingData?.guestName || 'Guest',
           guestPhone: bookingData?.guestPhone || 'N/A',
           roomName: bookingData?.roomName || 'Room',
@@ -89,16 +93,18 @@ const AdminBookings = () => {
         });
 
         if (emailResult.success) {
-          console.log('✅ User email sent successfully to:', bookingData.guestEmail);
-          toast.success(`✅ Email sent to ${bookingData.guestEmail}`);
+          console.log('✅ User email sent successfully to:', cleanEmail);
+          toast.success(`✅ Email sent to ${cleanEmail}`);
         } else {
           console.error('❌ User email failed:', emailResult.error);
           toast.warning('Booking confirmed but email failed');
         }
       } else {
-        console.warn('⚠️ No guestEmail found in booking data');
+        console.warn('⚠️ No valid guestEmail found in booking data');
+        console.warn('📧 guestEmail value:', guestEmail);
       }
       
+      // 4. Show toast
       toast.success(
         (t) => (
           <div>
