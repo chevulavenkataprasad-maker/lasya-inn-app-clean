@@ -23,18 +23,14 @@ const AdminBookings = () => {
     }
   }, [location.search]);
 
-  // ============================================
-  // ✅ REAL-TIME LISTENER FOR ALL BOOKINGS
-  // ============================================
+  // Real-time listener
   useEffect(() => {
     setLoading(true);
-    
     const unsubscribe = listenToAllBookings((data) => {
       console.log('📋 Real-time bookings update:', data);
       setBookings(data || []);
       setLoading(false);
     });
-
     return () => {
       console.log('🔴 Unsubscribing from all bookings');
       unsubscribe();
@@ -42,20 +38,18 @@ const AdminBookings = () => {
   }, []);
 
   // ============================================
-  // ✅ ADMIN ACCEPT BOOKING - Send User Notification + Email
+  // ✅ ADMIN ACCEPT BOOKING - FIXED
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
       // 1. Update booking status
       await updateBookingStatus(bookingId, 'confirmed');
       
-      console.log('📋 Accepting booking:', bookingData);
-      console.log('👤 User ID for notification:', bookingData?.userId);
-      console.log('📧 Guest Email:', bookingData?.guestEmail);
-      console.log('📧 Guest Email Type:', typeof bookingData?.guestEmail);
-      console.log('📧 Guest Email Length:', bookingData?.guestEmail?.length);
+      console.log('📋 ===== ACCEPT BOOKING =====');
+      console.log('📋 Booking Data:', bookingData);
+      console.log('📧 Guest Email from Firestore:', bookingData?.guestEmail);
       
-      // 2. Send In-App notification to user
+      // 2. Send In-App notification
       if (bookingData?.userId) {
         await sendUserNotification({
           bookingId: bookingId,
@@ -67,12 +61,10 @@ const AdminBookings = () => {
           checkOutDate: bookingData?.checkOutDate || 'N/A',
           totalPrice: bookingData?.totalPrice || 0
         });
-        console.log('✅ User in-app notification sent');
-      } else {
-        console.warn('⚠️ No userId found in booking data');
+        console.log('✅ In-app notification sent');
       }
 
-      // 3. Send Email to user - ✅ FIXED with validation
+      // 3. Send Email to user - ✅ FIXED
       const guestEmail = bookingData?.guestEmail;
       if (guestEmail && guestEmail.trim() !== '') {
         const cleanEmail = guestEmail.trim();
@@ -80,7 +72,7 @@ const AdminBookings = () => {
         
         const emailResult = await sendUserEmail({
           bookingId: bookingId,
-          guestEmail: cleanEmail,
+          guestEmail: cleanEmail,  // ✅ Must be clean email
           guestName: bookingData?.guestName || 'Guest',
           guestPhone: bookingData?.guestPhone || 'N/A',
           roomName: bookingData?.roomName || 'Room',
@@ -97,7 +89,7 @@ const AdminBookings = () => {
           toast.success(`✅ Email sent to ${cleanEmail}`);
         } else {
           console.error('❌ User email failed:', emailResult.error);
-          toast.warning('Booking confirmed but email failed');
+          toast.warning('Booking confirmed but email failed: ' + (emailResult.error || 'Unknown'));
         }
       } else {
         console.warn('⚠️ No valid guestEmail found in booking data');
@@ -111,7 +103,6 @@ const AdminBookings = () => {
             <div><strong>✅ Booking Confirmed!</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
             <div>📱 {bookingData?.guestPhone || 'N/A'}</div>
-            <div>🔔 In-app notification sent</div>
             <div>📧 Email sent to {bookingData?.guestEmail || 'N/A'}</div>
           </div>
         ),
@@ -125,7 +116,7 @@ const AdminBookings = () => {
   };
 
   // ============================================
-  // ✅ ADMIN CANCEL BOOKING - Send User Notification
+  // ✅ ADMIN CANCEL BOOKING
   // ============================================
   const handleCancelBooking = async (bookingId, bookingData) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
@@ -133,12 +124,8 @@ const AdminBookings = () => {
     }
 
     try {
-      // 1. Update booking status
       await updateBookingStatus(bookingId, 'cancelled');
       
-      console.log('📋 Cancelling booking:', bookingData);
-      
-      // 2. Send cancellation notification to user
       if (bookingData?.userId) {
         await sendUserNotification({
           bookingId: bookingId,
@@ -159,7 +146,6 @@ const AdminBookings = () => {
           <div>
             <div><strong>❌ Booking Cancelled</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
-            <div>🔔 Notification sent to user</div>
           </div>
         ),
         { duration: 4000 }
@@ -171,14 +157,11 @@ const AdminBookings = () => {
     }
   };
 
-  // ============================================
-  // ✅ DELETE BOOKING
-  // ============================================
+  // DELETE BOOKING
   const handleDelete = async (bookingId) => {
     if (!window.confirm('Are you sure you want to delete this booking?')) {
       return;
     }
-
     try {
       await deleteBooking(bookingId);
       toast.success('✅ Booking deleted successfully!');
