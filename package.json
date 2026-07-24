@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "aws-sdk": "^2.1693.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
