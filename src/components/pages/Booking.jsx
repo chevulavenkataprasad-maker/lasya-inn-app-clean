@@ -353,6 +353,7 @@ const Booking = () => {
         bookingId: bookingId,
         guestName: formData.guestName,
         guestPhone: formData.guestPhone,
+        guestEmail: formData.guestEmail,
         roomName: formData.roomName,
         checkInDate: formData.checkInDate,
         checkInTime: formData.checkInTime,

@@ -51,6 +51,7 @@ const AdminBookings = () => {
       
       console.log('📋 Accepting booking:', bookingData);
       console.log('👤 User ID for notification:', bookingData?.userId);
+      console.log('📧 Guest Email:', bookingData?.guestEmail);
       
       // 2. Send In-App notification to user
       if (bookingData?.userId) {
@@ -71,18 +72,25 @@ const AdminBookings = () => {
 
       // 3. Send Email to user
       if (bookingData?.guestEmail) {
-        await sendUserEmail({
+        const emailResult = await sendUserEmail({
           bookingId: bookingId,
           guestEmail: bookingData.guestEmail,
           guestName: bookingData?.guestName || 'Guest',
+          guestPhone: bookingData?.guestPhone || 'N/A',
           roomName: bookingData?.roomName || 'Room',
           checkInDate: bookingData?.checkInDate || 'N/A',
           checkInTime: bookingData?.checkInTime || 'N/A',
           checkOutDate: bookingData?.checkOutDate || 'N/A',
           checkOutTime: bookingData?.checkOutTime || 'N/A',
+          totalHours: bookingData?.totalHours || 24,
           totalPrice: bookingData?.totalPrice || 0
         });
-        console.log('✅ User email sent');
+
+        if (emailResult.success) {
+          console.log('✅ User email sent successfully');
+        } else {
+          console.error('❌ User email failed:', emailResult.error);
+        }
       } else {
         console.warn('⚠️ No guestEmail found in booking data');
       }

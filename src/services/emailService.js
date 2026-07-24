@@ -21,15 +21,18 @@ console.log('📧 EmailJS initialized with:', {
 });
 
 // ============================================
-// ✅ SEND EMAIL TO ADMIN
+// ✅ SEND EMAIL TO ADMIN (New Booking)
 // ============================================
 export const sendAdminEmail = async (data) => {
   try {
+    console.log('📧 Sending admin email...');
+
     const templateParams = {
       to_email: ADMIN_EMAIL,
       from_name: 'Lasya Inn Rooms',
       guest_name: data.guestName,
       guest_phone: data.guestPhone,
+      guest_email: data.guestEmail,      // ✅ Added for Reply To
       room_name: data.roomName,
       check_in_date: data.checkInDate,
       check_in_time: data.checkInTime,
@@ -51,22 +54,34 @@ export const sendAdminEmail = async (data) => {
 };
 
 // ============================================
-// ✅ SEND EMAIL TO USER
+// ✅ SEND EMAIL TO USER (Booking Confirmed)
 // ============================================
 export const sendUserEmail = async (data) => {
   try {
+    console.log('📧 Sending user email to:', data.guestEmail);
+
+    // ✅ Check if guestEmail exists
+    if (!data.guestEmail) {
+      console.error('❌ No guestEmail provided');
+      return { success: false, error: 'No guestEmail provided' };
+    }
+
     const templateParams = {
       to_email: data.guestEmail,
       from_name: 'Lasya Inn Rooms',
-      guest_name: data.guestName,
-      room_name: data.roomName,
-      check_in_date: data.checkInDate,
-      check_in_time: data.checkInTime,
-      check_out_date: data.checkOutDate,
-      check_out_time: data.checkOutTime,
-      total_price: data.totalPrice,
-      booking_id: data.bookingId || 'N/A'
+      guest_name: data.guestName || 'Guest',
+      guest_phone: data.guestPhone || 'N/A',
+      room_name: data.roomName || 'Room',
+      check_in_date: data.checkInDate || 'N/A',
+      check_in_time: data.checkInTime || 'N/A',
+      check_out_date: data.checkOutDate || 'N/A',
+      check_out_time: data.checkOutTime || 'N/A',
+      total_price: data.totalPrice || 0,
+      booking_id: data.bookingId || 'N/A',
+      total_hours: data.totalHours || 24    // ✅ Added total hours
     };
+
+    console.log('📋 Template Params:', templateParams);
 
     const result = await emailjs.send(SERVICE_ID, USER_TEMPLATE, templateParams);
     console.log('✅ User email sent to:', data.guestEmail);
@@ -74,6 +89,6 @@ export const sendUserEmail = async (data) => {
 
   } catch (error) {
     console.error('❌ User email error:', error);
-    return { success: false, error: error.text };
+    return { success: false, error: error.text || error.message };
   }
 };
