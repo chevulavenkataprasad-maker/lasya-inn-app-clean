@@ -70,8 +70,10 @@ const AdminBookings = () => {
         console.warn('⚠️ No userId found in booking data');
       }
 
-      // 3. Send Email to user
-      if (bookingData?.guestEmail) {
+      // 3. Send Email to user - ✅ FIXED
+      if (bookingData?.guestEmail && bookingData.guestEmail !== '') {
+        console.log('📧 Sending email to:', bookingData.guestEmail);
+        
         const emailResult = await sendUserEmail({
           bookingId: bookingId,
           guestEmail: bookingData.guestEmail,
@@ -87,9 +89,11 @@ const AdminBookings = () => {
         });
 
         if (emailResult.success) {
-          console.log('✅ User email sent successfully');
+          console.log('✅ User email sent successfully to:', bookingData.guestEmail);
+          toast.success(`✅ Email sent to ${bookingData.guestEmail}`);
         } else {
           console.error('❌ User email failed:', emailResult.error);
+          toast.warning('Booking confirmed but email failed');
         }
       } else {
         console.warn('⚠️ No guestEmail found in booking data');

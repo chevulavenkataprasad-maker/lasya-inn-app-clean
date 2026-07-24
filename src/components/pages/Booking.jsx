@@ -71,7 +71,6 @@ const Booking = () => {
   // ✅ DATE FORMAT FUNCTIONS
   // ============================================
   
-  // Format Date for Input: DD/MM/YYYY → YYYY-MM-DD
   const formatDateForInput = (dateString) => {
     if (!dateString) return '';
     const parts = dateString.split('/');
@@ -79,7 +78,6 @@ const Booking = () => {
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
   };
 
-  // Validate Date
   const isValidDate = (dateString) => {
     if (!dateString) return false;
     const parts = dateString.split('/');
@@ -94,7 +92,6 @@ const Booking = () => {
     return true;
   };
 
-  // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -103,7 +100,6 @@ const Booking = () => {
     return `${year}-${month}-${day}`;
   };
 
-  // Get date in DD/MM/YYYY format for display
   const formatDateDisplay = (dateString) => {
     if (!dateString) return '';
     const parts = dateString.split('-');
@@ -300,7 +296,7 @@ const Booking = () => {
         isAvailable: newAvailable > 0
       });
 
-      // ✅ 3. Create booking
+      // ✅ 3. Create booking with guestEmail
       const bookingData = {
         userId: user.uid,
         userName: user.displayName || 'Guest',
@@ -310,7 +306,7 @@ const Booking = () => {
         roomType: formData.roomType,
         roomPrice: formData.roomPrice,
         guestName: formData.guestName,
-        guestEmail: formData.guestEmail,
+        guestEmail: formData.guestEmail,  // ✅ Must be here
         guestPhone: formData.guestPhone,
         guestAddress: formData.guestAddress,
         guestCity: formData.guestCity,
@@ -333,6 +329,7 @@ const Booking = () => {
       };
 
       console.log('📝 Booking Data:', bookingData);
+      console.log('📧 Guest Email in booking:', bookingData.guestEmail);
 
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
