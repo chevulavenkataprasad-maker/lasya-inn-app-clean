@@ -7,6 +7,7 @@ import { addBooking, updateRoom, getRoom } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
 import { initiatePayment } from '../../services/paymentService';
 import { sendAdminNotification } from '../../firebase/notificationService';
+import { sendAdminEmail } from '../../services/emailService'; // ✅ Email for Admin
 import toast from 'react-hot-toast';
 import './Booking.css';
 
@@ -216,7 +217,7 @@ const Booking = () => {
   const totalHours = Math.round(calculateResult.totalHours);
 
   // ============================================
-  // ✅ HANDLE FORM SUBMIT - With Admin Notification
+  // ✅ HANDLE FORM SUBMIT - With Admin Notification + Email
   // ============================================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -340,7 +341,7 @@ const Booking = () => {
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
 
-      // ✅ 4. Send notification to Admin (Only In-App, No Email)
+      // ✅ 4. Send In-App Notification to Admin
       await sendAdminNotification({
         bookingId: bookingId,
         guestName: formData.guestName,
@@ -351,11 +352,24 @@ const Booking = () => {
         totalPrice: totalAmount
       });
 
+      // ✅ 5. Send Email to Admin
+      await sendAdminEmail({
+        bookingId: bookingId,
+        guestName: formData.guestName,
+        guestPhone: formData.guestPhone,
+        roomName: formData.roomName,
+        checkInDate: formData.checkInDate,
+        checkInTime: formData.checkInTime,
+        checkOutDate: formData.checkOutDate,
+        checkOutTime: formData.checkOutTime,
+        totalPrice: totalAmount
+      });
+
       setSavedBookingId(bookingId);
       setSavedBookingData(bookingData);
       setShowPayment(true);
 
-      toast.success('📋 Booking details saved! Admin notified.');
+      toast.success('📋 Booking details saved! Admin notified via In-App & Email.');
 
     } catch (error) {
       console.error('❌ Booking error:', error);

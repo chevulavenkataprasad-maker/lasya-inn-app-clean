@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { updateBookingStatus, deleteBooking, listenToAllBookings } from '../../firebase/firestore';
 import { sendUserNotification } from '../../firebase/notificationService';
+import { sendUserEmail } from '../../services/emailService';
 import toast from 'react-hot-toast';
 import './AdminBookings.css';
 
@@ -41,7 +42,7 @@ const AdminBookings = () => {
   }, []);
 
   // ============================================
-  // ✅ ADMIN ACCEPT BOOKING - Send User Notification
+  // ✅ ADMIN ACCEPT BOOKING - Send User Notification + Email
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
@@ -51,7 +52,7 @@ const AdminBookings = () => {
       console.log('📋 Accepting booking:', bookingData);
       console.log('👤 User ID for notification:', bookingData?.userId);
       
-      // 2. Send notification to user
+      // 2. Send In-App notification to user
       if (bookingData?.userId) {
         await sendUserNotification({
           bookingId: bookingId,
@@ -63,9 +64,27 @@ const AdminBookings = () => {
           checkOutDate: bookingData?.checkOutDate || 'N/A',
           totalPrice: bookingData?.totalPrice || 0
         });
-        console.log('✅ User notification sent');
+        console.log('✅ User in-app notification sent');
       } else {
         console.warn('⚠️ No userId found in booking data');
+      }
+
+      // 3. Send Email to user
+      if (bookingData?.guestEmail) {
+        await sendUserEmail({
+          bookingId: bookingId,
+          guestEmail: bookingData.guestEmail,
+          guestName: bookingData?.guestName || 'Guest',
+          roomName: bookingData?.roomName || 'Room',
+          checkInDate: bookingData?.checkInDate || 'N/A',
+          checkInTime: bookingData?.checkInTime || 'N/A',
+          checkOutDate: bookingData?.checkOutDate || 'N/A',
+          checkOutTime: bookingData?.checkOutTime || 'N/A',
+          totalPrice: bookingData?.totalPrice || 0
+        });
+        console.log('✅ User email sent');
+      } else {
+        console.warn('⚠️ No guestEmail found in booking data');
       }
       
       toast.success(
@@ -74,7 +93,8 @@ const AdminBookings = () => {
             <div><strong>✅ Booking Confirmed!</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
             <div>📱 {bookingData?.guestPhone || 'N/A'}</div>
-            <div>🔔 Notification sent to user</div>
+            <div>🔔 In-app notification sent</div>
+            <div>📧 Email sent to {bookingData?.guestEmail || 'N/A'}</div>
           </div>
         ),
         { duration: 5000 }
