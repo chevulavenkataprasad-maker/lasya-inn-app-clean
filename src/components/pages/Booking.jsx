@@ -7,7 +7,7 @@ import { addBooking, updateRoom, getRoom } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
 import { initiatePayment } from '../../services/paymentService';
 import { sendAdminNotification } from '../../firebase/notificationService';
-import { sendAdminEmail } from '../../services/emailService'; // ✅ Email for Admin
+import { sendAdminEmail } from '../../services/emailService';
 import toast from 'react-hot-toast';
 import './Booking.css';
 
@@ -169,7 +169,6 @@ const Booking = () => {
   // ✅ 24 HOURS CALCULATION
   // ============================================
   const calculateTotal = () => {
-    // Get dates in YYYY-MM-DD format
     const checkInDate = formData.checkInDate;
     const checkOutDate = formData.checkOutDate;
     
@@ -177,11 +176,9 @@ const Booking = () => {
       const checkInDateTime = new Date(`${checkInDate}T${formData.checkInTime}:00`);
       const checkOutDateTime = new Date(`${checkOutDate}T${formData.checkOutTime}:00`);
       
-      // Calculate difference in hours
       const diffMs = checkOutDateTime - checkInDateTime;
       const diffHours = diffMs / (1000 * 60 * 60);
       
-      // If check-out is before or same as check-in
       if (diffHours <= 0) {
         return { 
           total: 0, 
@@ -191,7 +188,6 @@ const Booking = () => {
         };
       }
       
-      // Calculate number of 24-hour blocks
       const days = Math.ceil(diffHours / 24);
       const totalDays = days > 0 ? days : 1;
       const total = totalDays * (formData.roomPrice || 1200);
