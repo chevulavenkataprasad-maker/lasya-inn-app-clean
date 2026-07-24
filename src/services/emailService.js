@@ -2,11 +2,11 @@
 
 import emailjs from '@emailjs/browser';
 
-// ✅ Your EmailJS Credentials
+// ✅ Updated Template IDs
 const PUBLIC_KEY = 'Q08ZLY2vmom8_MgYJ';
 const SERVICE_ID = 'service_txjx1g8';
-const ADMIN_TEMPLATE = 'template_wk54ynk';
-const USER_TEMPLATE = 'template_le7tyix';
+const ADMIN_TEMPLATE = 'template_03q5sai';   // ✅ New Admin Template
+const USER_TEMPLATE = 'template_n26isel';    // ✅ New User Template
 const ADMIN_EMAIL = 'lasyainnrooms@gmail.com';
 
 // Initialize EmailJS
@@ -28,17 +28,12 @@ export const sendAdminEmail = async (data) => {
     console.log('📧 Sending admin email...');
     console.log('📧 Admin Email Data:', data);
 
-    // ✅ Validate guestEmail
-    if (!data.guestEmail) {
-      console.warn('⚠️ No guestEmail provided for admin email');
-    }
-
     const templateParams = {
       to_email: ADMIN_EMAIL,
       from_name: 'Lasya Inn Rooms',
       guest_name: data.guestName || 'Guest',
       guest_phone: data.guestPhone || 'N/A',
-      guest_email: data.guestEmail || 'N/A',      // ✅ For Reply To
+      guest_email: data.guestEmail || 'N/A',
       room_name: data.roomName || 'Room',
       check_in_date: data.checkInDate || 'N/A',
       check_in_time: data.checkInTime || 'N/A',
@@ -57,31 +52,28 @@ export const sendAdminEmail = async (data) => {
 
   } catch (error) {
     console.error('❌ Admin email error:', error);
-    console.error('❌ Error details:', error.text || error.message);
     return { success: false, error: error.text || error.message };
   }
 };
 
 // ============================================
-// ✅ SEND EMAIL TO USER (Booking Confirmed) - FIXED
+// ✅ SEND EMAIL TO USER (Booking Confirmed)
 // ============================================
 export const sendUserEmail = async (data) => {
   try {
     console.log('📧 Sending user email...');
     console.log('📧 User Email Data:', data);
 
-    // ✅ Check if guestEmail exists and not empty
     if (!data.guestEmail || data.guestEmail.trim() === '') {
       console.error('❌ No guestEmail provided or empty');
-      return { success: false, error: 'No guestEmail provided or empty' };
+      return { success: false, error: 'No guestEmail provided' };
     }
 
-    // ✅ Clean email (remove spaces)
     const cleanEmail = data.guestEmail.trim();
     console.log('📧 Clean Email:', cleanEmail);
 
     const templateParams = {
-      to_email: cleanEmail,  // ✅ Use clean email
+      to_email: cleanEmail,
       from_name: 'Lasya Inn Rooms',
       guest_name: data.guestName || 'Guest',
       guest_phone: data.guestPhone || 'N/A',
@@ -100,19 +92,16 @@ export const sendUserEmail = async (data) => {
 
     const result = await emailjs.send(SERVICE_ID, USER_TEMPLATE, templateParams);
     console.log('✅ User email sent to:', cleanEmail);
-    console.log('✅ Email response:', result.text);
     return { success: true, messageId: result.text };
 
   } catch (error) {
     console.error('❌ User email error:', error);
-    console.error('❌ Error status:', error.status);
-    console.error('❌ Error text:', error.text || error.message);
     return { success: false, error: error.text || error.message, status: error.status };
   }
 };
 
 // ============================================
-// ✅ TEST EMAIL FUNCTION (For debugging)
+// ✅ TEST EMAIL FUNCTION
 // ============================================
 export const testEmail = async (email) => {
   try {
