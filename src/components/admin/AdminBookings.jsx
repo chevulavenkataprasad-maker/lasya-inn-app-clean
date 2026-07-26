@@ -38,7 +38,7 @@ const AdminBookings = () => {
   }, []);
 
   // ============================================
-  // ✅ ADMIN ACCEPT BOOKING - FIXED
+  // ✅ ADMIN ACCEPT BOOKING - WITH DEBUG
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
@@ -46,6 +46,7 @@ const AdminBookings = () => {
       await updateBookingStatus(bookingId, 'confirmed');
       
       console.log('📋 ===== ACCEPT BOOKING =====');
+      console.log('📋 Booking ID:', bookingId);
       console.log('📋 Booking Data:', bookingData);
       console.log('📧 Guest Email from Firestore:', bookingData?.guestEmail);
       
@@ -64,7 +65,7 @@ const AdminBookings = () => {
         console.log('✅ In-app notification sent');
       }
 
-      // 3. Send Email to user - ✅ FIXED
+      // 3. Send Email to user
       const guestEmail = bookingData?.guestEmail;
       if (guestEmail && guestEmail.trim() !== '') {
         const cleanEmail = guestEmail.trim();
@@ -72,7 +73,7 @@ const AdminBookings = () => {
         
         const emailResult = await sendUserEmail({
           bookingId: bookingId,
-          guestEmail: cleanEmail,  // ✅ Must be clean email
+          guestEmail: cleanEmail,
           guestName: bookingData?.guestName || 'Guest',
           guestPhone: bookingData?.guestPhone || 'N/A',
           roomName: bookingData?.roomName || 'Room',
@@ -84,16 +85,35 @@ const AdminBookings = () => {
           totalPrice: bookingData?.totalPrice || 0
         });
 
+        console.log('📧 Email Result:', emailResult);
+        
         if (emailResult.success) {
           console.log('✅ User email sent successfully to:', cleanEmail);
           toast.success(`✅ Email sent to ${cleanEmail}`);
         } else {
           console.error('❌ User email failed:', emailResult.error);
-          toast.warning('Booking confirmed but email failed: ' + (emailResult.error || 'Unknown'));
+          toast.warning('Booking confirmed but email failed');
         }
       } else {
         console.warn('⚠️ No valid guestEmail found in booking data');
         console.warn('📧 guestEmail value:', guestEmail);
+        
+        // ✅ Debug: Send test email to admin if guestEmail is missing
+        console.log('📧 Sending test email to admin for debugging...');
+        const testResult = await sendUserEmail({
+          bookingId: bookingId,
+          guestEmail: 'lasyainnrooms@gmail.com',
+          guestName: 'TEST - ' + (bookingData?.guestName || 'Guest'),
+          guestPhone: bookingData?.guestPhone || 'N/A',
+          roomName: bookingData?.roomName || 'Room',
+          checkInDate: bookingData?.checkInDate || 'N/A',
+          checkInTime: bookingData?.checkInTime || 'N/A',
+          checkOutDate: bookingData?.checkOutDate || 'N/A',
+          checkOutTime: bookingData?.checkOutTime || 'N/A',
+          totalHours: bookingData?.totalHours || 24,
+          totalPrice: bookingData?.totalPrice || 0
+        });
+        console.log('📧 Test Email Result:', testResult);
       }
       
       // 4. Show toast
