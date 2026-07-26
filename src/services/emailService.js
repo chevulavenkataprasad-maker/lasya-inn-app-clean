@@ -2,15 +2,24 @@
 
 import emailjs from '@emailjs/browser';
 
-// ✅ Updated Template IDs
+// ✅ Your EmailJS Credentials
 const PUBLIC_KEY = 'Q08ZLY2vmom8_MgYJ';
 const SERVICE_ID = 'service_txjx1g8';
 const ADMIN_TEMPLATE = 'template_03q5sai';   // ✅ New Admin Template
 const USER_TEMPLATE = 'template_n26isel';    // ✅ New User Template
 const ADMIN_EMAIL = 'lasyainnrooms@gmail.com';
 
-// Initialize EmailJS
-emailjs.init(PUBLIC_KEY);
+// ✅ FIXED: Initialize EmailJS with single object (not deprecated)
+emailjs.init({
+  publicKey: PUBLIC_KEY,
+  // Do not block headless browsers
+  blockHeadless: false,
+  limitRate: {
+    // Set the limit of requests per second
+    id: 'app',
+    throttle: 10000,  // 10 seconds between requests
+  },
+});
 
 console.log('📧 EmailJS initialized with:', {
   publicKey: PUBLIC_KEY ? '✅ Set' : '❌ Missing',
@@ -62,7 +71,6 @@ export const sendAdminEmail = async (data) => {
 export const sendUserEmail = async (data) => {
   try {
     console.log('📧 Sending user email...');
-    console.log('📧 User Email Data:', data);
 
     if (!data.guestEmail || data.guestEmail.trim() === '') {
       console.error('❌ No guestEmail provided or empty');
