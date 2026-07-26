@@ -21,6 +21,7 @@ import Contact from './components/pages/Contact';
 import Booking from './components/pages/Booking';
 import BookingSuccess from './components/pages/BookingSuccess';
 import UserNotifications from './components/pages/UserNotifications';
+import MyBookings from './components/pages/MyBookings'; // ✅ ADD THIS
 
 // Admin Imports
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -88,6 +89,13 @@ function App() {
           <Route path="/notifications" element={
             <ProtectedRoute>
               <UserNotifications />
+            </ProtectedRoute>
+          } />
+
+          {/* ✅ MY BOOKINGS ROUTE */}
+          <Route path="/my-bookings" element={
+            <ProtectedRoute>
+              <MyBookings />
             </ProtectedRoute>
           } />
 
