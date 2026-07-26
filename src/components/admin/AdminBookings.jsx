@@ -131,7 +131,7 @@ const AdminBookings = () => {
       
     } catch (error) {
       console.error('❌ Accept error:', error);
-      toast.error('Failed to accept booking');
+      toast.error('Booking confirmed but email failed');
     }
   };
 
