@@ -38,9 +38,10 @@ const Navbar = () => {
     return () => unsubscribe();
   }, [user]);
 
+  // ✅ Nav Links - REMOVED ROOMS
   const navLinks = [
     { path: '/', icon: '🏠', label: 'Home' },
-    { path: '/rooms', icon: '🛏️', label: 'Rooms' },
+    // { path: '/rooms', icon: '🛏️', label: 'Rooms' }, // ❌ Removed
     { path: '/amenities', icon: '✨', label: 'Amenities' },
     { path: '/gallery', icon: '📸', label: 'Gallery' },
     { path: '/reviews', icon: '⭐', label: 'Reviews' },
@@ -94,7 +95,7 @@ const Navbar = () => {
           </Link>
         </div>
 
-        {/* Desktop Menu */}
+        {/* Desktop Menu - WITHOUT ROOMS */}
         <div className="nav-menu-pro">
           {navLinks.map((link) => (
             <Link
@@ -173,7 +174,7 @@ const Navbar = () => {
         </button>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu - WITHOUT ROOMS */}
       <div className={`mobile-menu-pro ${mobileMenu ? 'open' : ''}`}>
         {navLinks.map((link) => (
           <Link
