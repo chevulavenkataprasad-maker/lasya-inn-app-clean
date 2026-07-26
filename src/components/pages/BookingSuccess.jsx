@@ -45,7 +45,7 @@ const BookingSuccess = () => {
           <h1>Booking Confirmed!</h1>
           <p className="subtitle">Your booking has been confirmed successfully.</p>
           <div className="email-badge">
-            📧 A confirmation email has been sent to <strong>{booking.guestEmail}</strong>
+            📧 A confirmation email has been sent to <strong>{booking.guestEmail || booking.userEmail}</strong>
           </div>
         </div>
 
@@ -82,6 +82,10 @@ const BookingSuccess = () => {
             <div className="detail-item">
               <span className="label">Total Days</span>
               <span className="value">{booking.totalDays || 1} days</span>
+            </div>
+            <div className="detail-item">
+              <span className="label">Total Hours</span>
+              <span className="value">{booking.totalHours || 24} hours</span>
             </div>
             <div className="detail-item highlight">
               <span className="label">Total Price</span>
@@ -143,6 +147,23 @@ const BookingSuccess = () => {
           </ul>
         </div>
 
+        {/* Payment Details */}
+        {paymentId && (
+          <div className="payment-section">
+            <h3>💳 Payment Details</h3>
+            <div className="payment-details">
+              <div className="payment-item">
+                <span className="label">Payment ID</span>
+                <span className="value">{paymentId}</span>
+              </div>
+              <div className="payment-item">
+                <span className="label">Payment Status</span>
+                <span className="payment-status success">✅ Completed</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="action-buttons">
           <Link to="/my-bookings" className="btn-my-bookings">
@@ -160,6 +181,7 @@ const BookingSuccess = () => {
         <div className="success-footer">
           <p>📞 For any queries, contact us at <strong>+91 9108217506</strong></p>
           <p>🌐 <a href="https://www.lasyainnroom.com">www.lasyainnroom.com</a></p>
+          <p className="footer-note">This is a system-generated confirmation. Please keep this for your records.</p>
         </div>
       </div>
     </div>
