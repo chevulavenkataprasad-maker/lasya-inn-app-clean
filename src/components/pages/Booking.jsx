@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { addBooking, updateRoom, getRoom } from '../../firebase/firestore';
+import { addBooking, updateRoom, getRoom, updateBookingStatus } from '../../firebase/firestore';
 import { uploadFileToS3 } from '../../aws/upload';
 import { initiatePayment } from '../../services/paymentService';
 import { sendAdminNotification } from '../../firebase/notificationService';
@@ -76,16 +76,12 @@ const Booking = () => {
     const count = formData.guests || 1;
     const current = [...guestAadharNumbers];
     
-    // Add new guests if count increased
     while (current.length < count) {
       current.push('');
     }
-    
-    // Remove extra guests if count decreased
     while (current.length > count) {
       current.pop();
     }
-    
     setGuestAadharNumbers(current);
   }, [formData.guests]);
 
@@ -94,7 +90,6 @@ const Booking = () => {
   // ============================================
   const handleGuestAadharChange = (index, value) => {
     const updated = [...guestAadharNumbers];
-    // Allow only numbers and max 12 digits
     const cleaned = value.replace(/\D/g, '');
     if (cleaned.length <= 12) {
       updated[index] = cleaned;
@@ -155,11 +150,15 @@ const Booking = () => {
     }
   };
 
+  // ============================================
+  // ✅ PAYMENT METHODS - WITH CASH
+  // ============================================
   const paymentMethods = [
     { id: 'upi', name: 'UPI', icon: '📱', desc: 'Google Pay, PhonePe, Paytm' },
     { id: 'card', name: 'Card', icon: '💳', desc: 'Credit/Debit Card' },
     { id: 'netbanking', name: 'Net Banking', icon: '🏦', desc: 'All major banks' },
-    { id: 'wallet', name: 'Wallet', icon: '👛', desc: 'PhonePe, Paytm, Amazon' }
+    { id: 'wallet', name: 'Wallet', icon: '👛', desc: 'PhonePe, Paytm, Amazon' },
+    { id: 'cash', name: 'Cash', icon: '💵', desc: 'Pay at Hotel (Cash)' }  // ✅ Added Cash
   ];
 
   const banks = [
@@ -409,7 +408,7 @@ const Booking = () => {
   };
 
   // ============================================
-  // ✅ HANDLE PAYMENT
+  // ✅ HANDLE PAYMENT - WITH CASH
   // ============================================
   const handlePayment = async () => {
     if (!selectedMethod) {
@@ -425,6 +424,26 @@ const Booking = () => {
     setPaymentLoading(true);
 
     try {
+      // ✅ If cash payment - Skip actual payment
+      if (selectedMethod === 'cash') {
+        toast.success('✅ Booking confirmed! Pay at hotel during check-in.');
+        
+        // ✅ Update booking status to confirmed
+        await updateBookingStatus(savedBookingId, 'confirmed');
+        
+        navigate('/booking-success', {
+          state: {
+            bookingId: savedBookingId,
+            booking: savedBookingData,
+            paymentMethod: 'cash',
+            status: 'confirmed'
+          }
+        });
+        setPaymentLoading(false);
+        return;
+      }
+
+      // For other payment methods (UPI, Card, etc.)
       const paymentData = {
         method: selectedMethod,
         bookingId: savedBookingId,
@@ -440,13 +459,13 @@ const Booking = () => {
       const result = await initiatePayment(paymentData);
 
       if (result.success) {
-        toast.success('✅ Payment successful! Booking pending admin approval.');
+        toast.success('✅ Payment successful! Booking confirmed.');
         navigate('/booking-success', {
           state: {
             bookingId: savedBookingId,
             booking: savedBookingData,
             paymentId: result.paymentId,
-            status: 'pending'
+            status: 'confirmed'
           }
         });
       } else {
@@ -462,7 +481,7 @@ const Booking = () => {
   };
 
   // ============================================
-  // RENDER PAYMENT SECTION
+  // RENDER PAYMENT SECTION - WITH CASH
   // ============================================
   const renderPaymentSection = () => {
     if (!showPayment) return null;
@@ -602,13 +621,46 @@ const Booking = () => {
           </div>
         )}
 
+        {/* ✅ Cash Payment */}
+        {selectedMethod === 'cash' && (
+          <div className="payment-form-pro">
+            <h4>💵 Cash Payment</h4>
+            <div style={{
+              background: '#fff8e1',
+              padding: '20px',
+              borderRadius: '10px',
+              border: '1px solid #ffd54f',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '10px' }}>💵</div>
+              <h4 style={{ margin: '0', color: '#1a1a2e' }}>Pay at Hotel</h4>
+              <p style={{ color: '#555', margin: '10px 0' }}>
+                You can pay cash at the hotel during check-in.
+              </p>
+              <div style={{
+                background: '#fff',
+                padding: '15px',
+                borderRadius: '8px',
+                marginTop: '10px',
+                textAlign: 'left'
+              }}>
+                <p style={{ margin: '5px 0' }}>✅ <strong>No online payment required</strong></p>
+                <p style={{ margin: '5px 0' }}>✅ <strong>Pay at reception</strong></p>
+                <p style={{ margin: '5px 0' }}>✅ <strong>Secure booking</strong></p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <button
           type="button"
           className="btn-pay-pro"
           onClick={handlePayment}
           disabled={paymentLoading}
         >
-          {paymentLoading ? 'Processing...' : `Pay ₹${totalAmount}`}
+          {paymentLoading ? 'Processing...' : 
+           selectedMethod === 'cash' ? '💰 Confirm Booking (Pay at Hotel)' : 
+           `Pay ₹${totalAmount}`}
         </button>
 
         <p className="secure-payment">🔒 Secure & Encrypted Payment</p>
@@ -783,9 +835,7 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* ========================================= */}
-          {/* ✅ PRIMARY GUEST AADHAR - Photo + Number */}
-          {/* ========================================= */}
+          {/* Primary Guest Aadhar */}
           <div className="booking-section-pro aadhar-section-pro">
             <h3>🪪 Primary Guest Aadhar Details <span className="required">*</span></h3>
             <div className="booking-grid-pro">
@@ -841,9 +891,7 @@ const Booking = () => {
             </div>
           </div>
 
-          {/* ========================================= */}
-          {/* ✅ ALL GUESTS - Only Aadhar Numbers */}
-          {/* ========================================= */}
+          {/* All Guests Aadhar Numbers */}
           <div className="booking-section-pro guest-aadhar-section">
             <h3>👥 All Guests Aadhar Numbers</h3>
             <p style={{ color: '#888', fontSize: '14px', marginBottom: '15px' }}>
