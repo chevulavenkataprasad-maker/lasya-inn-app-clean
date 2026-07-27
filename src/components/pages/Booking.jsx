@@ -20,8 +20,6 @@ const Booking = () => {
   const roomData = location.state || {};
   
   const [submitting, setSubmitting] = useState(false);
-  const [aadharFile, setAadharFile] = useState(null);
-  const [aadharPreview, setAadharPreview] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   const [showPayment, setShowPayment] = useState(false);
@@ -37,6 +35,9 @@ const Booking = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [savedBookingId, setSavedBookingId] = useState(null);
   const [savedBookingData, setSavedBookingData] = useState(null);
+
+  // ✅ Multiple Guests State
+  const [guestDetails, setGuestDetails] = useState([]);
 
   // ✅ Set room price based on type
   const getRoomPrice = (type) => {
@@ -68,30 +69,62 @@ const Booking = () => {
   });
 
   // ============================================
+  // ✅ UPDATE GUEST DETAILS WHEN GUESTS COUNT CHANGES
+  // ============================================
+  useEffect(() => {
+    const count = formData.guests || 1;
+    const current = [...guestDetails];
+    
+    // Add new guests if count increased
+    while (current.length < count) {
+      current.push({
+        name: '',
+        aadharNumber: '',
+        aadharFile: null,
+        aadharPreview: ''
+      });
+    }
+    
+    // Remove extra guests if count decreased
+    while (current.length > count) {
+      current.pop();
+    }
+    
+    setGuestDetails(current);
+  }, [formData.guests]);
+
+  // ============================================
+  // ✅ HANDLE GUEST FIELD CHANGES
+  // ============================================
+  const handleGuestChange = (index, field, value) => {
+    const updated = [...guestDetails];
+    updated[index][field] = value;
+    setGuestDetails(updated);
+  };
+
+  // ============================================
+  // ✅ HANDLE GUEST AADHAR UPLOAD
+  // ============================================
+  const handleGuestAadharUpload = (index, file) => {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size should be less than 5MB');
+      return;
+    }
+    
+    const updated = [...guestDetails];
+    updated[index].aadharFile = file;
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      updated[index].aadharPreview = reader.result;
+      setGuestDetails(updated);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ============================================
   // ✅ DATE FORMAT FUNCTIONS
   // ============================================
-  
-  const formatDateForInput = (dateString) => {
-    if (!dateString) return '';
-    const parts = dateString.split('/');
-    if (parts.length !== 3) return '';
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-  };
-
-  const isValidDate = (dateString) => {
-    if (!dateString) return false;
-    const parts = dateString.split('/');
-    if (parts.length !== 3) return false;
-    const day = parseInt(parts[0]);
-    const month = parseInt(parts[1]);
-    const year = parseInt(parts[2]);
-    if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
-    if (month < 1 || month > 12) return false;
-    if (day < 1 || day > 31) return false;
-    if (year < 1900 || year > 2100) return false;
-    return true;
-  };
-
   const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -106,9 +139,6 @@ const Booking = () => {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   };
 
-  // ============================================
-  // ✅ HANDLE DATE CHANGE
-  // ============================================
   const handleDateChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -209,7 +239,7 @@ const Booking = () => {
   const totalHours = Math.round(calculateResult.totalHours);
 
   // ============================================
-  // ✅ HANDLE FORM SUBMIT - With Admin Notification + Email
+  // ✅ HANDLE FORM SUBMIT
   // ============================================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -225,14 +255,6 @@ const Booking = () => {
     }
     if (!formData.guestEmail) {
       toast.error('Please enter your email');
-      return;
-    }
-    if (!formData.aadharNumber || formData.aadharNumber.length !== 12) {
-      toast.error('Please enter valid 12-digit Aadhar number');
-      return;
-    }
-    if (!formData.aadharName) {
-      toast.error('Please enter name as per Aadhar');
       return;
     }
     if (!formData.checkInDate || !formData.checkOutDate) {
@@ -252,10 +274,23 @@ const Booking = () => {
       return;
     }
     
-    if (!aadharFile) {
-      toast.error('Please upload Aadhar card photo');
-      return;
+    // ✅ Validate all guests have Aadhar
+    for (let i = 0; i < guestDetails.length; i++) {
+      const guest = guestDetails[i];
+      if (!guest.name) {
+        toast.error(`Please enter name for Guest ${i + 1}`);
+        return;
+      }
+      if (!guest.aadharNumber || guest.aadharNumber.length !== 12) {
+        toast.error(`Please enter valid 12-digit Aadhar for Guest ${i + 1}`);
+        return;
+      }
+      if (!guest.aadharFile) {
+        toast.error(`Please upload Aadhar photo for Guest ${i + 1}`);
+        return;
+      }
     }
+    
     if (!agreeTerms) {
       toast.error('Please agree to Terms & Conditions');
       return;
@@ -273,12 +308,21 @@ const Booking = () => {
     setSubmitting(true);
 
     try {
-      let aadharUrl = '';
-      if (aadharFile) {
-        aadharUrl = await uploadFileToS3(aadharFile, 'aadhar');
+      // ✅ Upload all guest Aadhar photos
+      const guestAadharUrls = [];
+      for (let i = 0; i < guestDetails.length; i++) {
+        const guest = guestDetails[i];
+        if (guest.aadharFile) {
+          const url = await uploadFileToS3(guest.aadharFile, 'aadhar');
+          guestAadharUrls.push({
+            name: guest.name,
+            aadharNumber: guest.aadharNumber,
+            aadharPhoto: url
+          });
+        }
       }
 
-      // ✅ 1. Get current room data
+      // ✅ Get current room data
       const room = await getRoom(formData.roomId);
       const currentAvailable = room.availableRooms || 0;
       
@@ -289,14 +333,12 @@ const Booking = () => {
       }
       
       const newAvailable = currentAvailable - 1;
-
-      // ✅ 2. Update room availability
       await updateRoom(formData.roomId, {
         availableRooms: newAvailable,
         isAvailable: newAvailable > 0
       });
 
-      // ✅ 3. Create booking with guestEmail
+      // ✅ Create booking with all guests data
       const bookingData = {
         userId: user.uid,
         userName: user.displayName || 'Guest',
@@ -306,19 +348,17 @@ const Booking = () => {
         roomType: formData.roomType,
         roomPrice: formData.roomPrice,
         guestName: formData.guestName,
-        guestEmail: formData.guestEmail,  // ✅ Must be here
+        guestEmail: formData.guestEmail,
         guestPhone: formData.guestPhone,
         guestAddress: formData.guestAddress,
         guestCity: formData.guestCity,
         guestPincode: formData.guestPincode,
-        aadharNumber: formData.aadharNumber,
-        aadharName: formData.aadharName,
-        aadharPhoto: aadharUrl,
+        guests: formData.guests,
+        guestAadharDetails: guestAadharUrls,  // ✅ All guests Aadhar
         checkInDate: formData.checkInDate,
         checkInTime: formData.checkInTime,
         checkOutDate: formData.checkOutDate,
         checkOutTime: formData.checkOutTime,
-        guests: formData.guests,
         specialRequests: formData.specialRequests,
         totalHours: totalHours,
         totalDays: totalDays,
@@ -329,12 +369,12 @@ const Booking = () => {
       };
 
       console.log('📝 Booking Data:', bookingData);
-      console.log('📧 Guest Email in booking:', bookingData.guestEmail);
+      console.log('👥 Guest Aadhar Details:', guestAadharUrls);
 
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
 
-      // ✅ 4. Send In-App Notification to Admin
+      // ✅ Send notifications to Admin
       await sendAdminNotification({
         bookingId: bookingId,
         guestName: formData.guestName,
@@ -345,7 +385,6 @@ const Booking = () => {
         totalPrice: totalAmount
       });
 
-      // ✅ 5. Send Email to Admin
       await sendAdminEmail({
         bookingId: bookingId,
         guestName: formData.guestName,
@@ -363,7 +402,7 @@ const Booking = () => {
       setSavedBookingData(bookingData);
       setShowPayment(true);
 
-      toast.success('📋 Booking details saved! Admin notified via In-App & Email.');
+      toast.success('📋 Booking details saved! Admin notified.');
 
     } catch (error) {
       console.error('❌ Booking error:', error);
@@ -426,22 +465,9 @@ const Booking = () => {
     }
   };
 
-  const handleAadharUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should be less than 5MB');
-        return;
-      }
-      setAadharFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAadharPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
+  // ============================================
+  // RENDER PAYMENT SECTION
+  // ============================================
   const renderPaymentSection = () => {
     if (!showPayment) return null;
 
@@ -603,6 +629,7 @@ const Booking = () => {
 
       <div className="booking-container-pro">
         <form onSubmit={handleSubmit} className="booking-form-pro">
+          {/* Room Details */}
           <div className="booking-section-pro room-details-display">
             <h3>🛏️ Selected Room</h3>
             <div className="room-summary">
@@ -617,6 +644,7 @@ const Booking = () => {
             </div>
           </div>
 
+          {/* Date & Time */}
           <div className="booking-section-pro">
             <h3>📅 Date & Time</h3>
             <div className="booking-grid-pro">
@@ -629,9 +657,6 @@ const Booking = () => {
                   required
                   min={getTodayDate()}
                 />
-                <small style={{ color: '#888', fontSize: '12px' }}>
-                  Select check-in date
-                </small>
               </div>
               <div>
                 <label>Check-in Time <span className="required">*</span></label>
@@ -653,9 +678,6 @@ const Booking = () => {
                   required
                   min={formData.checkInDate || getTodayDate()}
                 />
-                <small style={{ color: '#888', fontSize: '12px' }}>
-                  Select check-out date
-                </small>
               </div>
               <div>
                 <label>Check-out Time <span className="required">*</span></label>
@@ -671,6 +693,7 @@ const Booking = () => {
             </div>
           </div>
 
+          {/* Guest Details */}
           <div className="booking-section-pro">
             <h3>👤 Guest Details</h3>
             <div className="booking-grid-pro">
@@ -724,6 +747,7 @@ const Booking = () => {
             </div>
           </div>
 
+          {/* Address Details */}
           <div className="booking-section-pro">
             <h3>📍 Address Details</h3>
             <div className="booking-grid-pro">
@@ -763,61 +787,91 @@ const Booking = () => {
             </div>
           </div>
 
-          <div className="booking-section-pro aadhar-section-pro">
-            <h3>🪪 Aadhar Details <span className="required">*</span></h3>
-            <div className="booking-grid-pro">
-              <div>
-                <label>Aadhar Number <span className="required">*</span></label>
-                <input
-                  type="text"
-                  value={formData.aadharNumber}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    if (value.length <= 12) {
-                      setFormData({...formData, aadharNumber: value});
-                    }
-                  }}
-                  required
-                  maxLength="12"
-                  placeholder="12-digit Aadhar number"
-                />
-              </div>
-              <div>
-                <label>Name as per Aadhar <span className="required">*</span></label>
-                <input
-                  type="text"
-                  value={formData.aadharName}
-                  onChange={(e) => setFormData({...formData, aadharName: e.target.value})}
-                  required
-                  placeholder="Name as per Aadhar"
-                />
-              </div>
-              <div className="full-width">
-                <label>Aadhar Photo <span className="required">*</span></label>
-                <div className="file-upload-pro">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAadharUpload}
-                    required
-                    id="aadhar-upload"
-                  />
-                  <label htmlFor="aadhar-upload" className="upload-label-pro">
-                    {aadharPreview ? (
-                      <img src={aadharPreview} alt="Aadhar" className="aadhar-preview-pro" />
-                    ) : (
-                      <div>
-                        <span>📤</span>
-                        <p>Click to upload Aadhar photo</p>
-                        <small>JPG, PNG (Max 5MB)</small>
-                      </div>
-                    )}
-                  </label>
+          {/* ========================================= */}
+          {/* ✅ MULTIPLE GUESTS - AADHAR DETAILS */}
+          {/* ========================================= */}
+          <div className="booking-section-pro">
+            <h3>🪪 Guest Aadhar Details</h3>
+            <p style={{ color: '#888', fontSize: '14px', marginBottom: '15px' }}>
+              Please provide Aadhar details for all {formData.guests} guests
+            </p>
+            
+            {guestDetails.map((guest, index) => (
+              <div key={index} style={{
+                background: '#f8f9fa',
+                border: '1px solid #e0e0e0',
+                borderRadius: '12px',
+                padding: '20px',
+                marginBottom: '15px'
+              }}>
+                <h4 style={{ margin: '0 0 15px 0', color: '#1a1a2e' }}>
+                  👤 Guest {index + 1}
+                </h4>
+                
+                <div className="booking-grid-pro">
+                  {/* Guest Name */}
+                  <div>
+                    <label>Guest Name <span className="required">*</span></label>
+                    <input
+                      type="text"
+                      placeholder="Enter guest name"
+                      value={guest.name}
+                      onChange={(e) => handleGuestChange(index, 'name', e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  {/* Aadhar Number */}
+                  <div>
+                    <label>Aadhar Number <span className="required">*</span></label>
+                    <input
+                      type="text"
+                      placeholder="12-digit Aadhar"
+                      value={guest.aadharNumber}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        if (value.length <= 12) {
+                          handleGuestChange(index, 'aadharNumber', value);
+                        }
+                      }}
+                      maxLength="12"
+                      required
+                    />
+                  </div>
+                  
+                  {/* Aadhar Photo */}
+                  <div className="full-width">
+                    <label>Aadhar Photo <span className="required">*</span></label>
+                    <div className="file-upload-pro">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) handleGuestAadharUpload(index, file);
+                        }}
+                        required
+                        id={`aadhar-${index}`}
+                      />
+                      <label htmlFor={`aadhar-${index}`} className="upload-label-pro">
+                        {guest.aadharPreview ? (
+                          <img src={guest.aadharPreview} alt={`Guest ${index + 1} Aadhar`} style={{ maxHeight: '120px' }} />
+                        ) : (
+                          <div>
+                            <span>📤</span>
+                            <p>Upload Aadhar photo</p>
+                            <small>JPG, PNG (Max 5MB)</small>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
 
+          {/* Special Requests */}
           <div className="booking-section-pro">
             <h3>📝 Special Requests</h3>
             <textarea
@@ -828,6 +882,7 @@ const Booking = () => {
             />
           </div>
 
+          {/* Booking Summary */}
           <div className="booking-section-pro amount-summary-pro">
             <h3>💰 Booking Summary</h3>
             <div className="amount-details">
@@ -842,6 +897,9 @@ const Booking = () => {
                 <span>Check-out: {formData.checkOutDate ? formatDateDisplay(formData.checkOutDate) : 'N/A'} at {formData.checkOutTime}</span>
               </div>
               <div className="amount-row">
+                <span>Guests: {formData.guests}</span>
+              </div>
+              <div className="amount-row">
                 <span>Total Hours: {totalHours} hours</span>
                 <span>{totalDays} day(s)</span>
               </div>
@@ -852,6 +910,7 @@ const Booking = () => {
             </div>
           </div>
 
+          {/* Terms & Submit */}
           <div className="booking-actions-pro">
             <div className="terms-pro">
               <input
