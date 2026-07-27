@@ -38,7 +38,7 @@ const AdminBookings = () => {
   }, []);
 
   // ============================================
-  // ✅ ADMIN ACCEPT BOOKING - WITH DEBUG
+  // ✅ ADMIN ACCEPT BOOKING
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
@@ -48,7 +48,7 @@ const AdminBookings = () => {
       console.log('📋 ===== ACCEPT BOOKING =====');
       console.log('📋 Booking ID:', bookingId);
       console.log('📋 Booking Data:', bookingData);
-      console.log('📧 Guest Email from Firestore:', bookingData?.guestEmail);
+      console.log('📧 Guest Email:', bookingData?.guestEmail);
       
       // 2. Send In-App notification
       if (bookingData?.userId) {
@@ -85,45 +85,23 @@ const AdminBookings = () => {
           totalPrice: bookingData?.totalPrice || 0
         });
 
-        console.log('📧 Email Result:', emailResult);
-        
         if (emailResult.success) {
-          console.log('✅ User email sent successfully to:', cleanEmail);
+          console.log('✅ Email sent to:', cleanEmail);
           toast.success(`✅ Email sent to ${cleanEmail}`);
         } else {
-          console.error('❌ User email failed:', emailResult.error);
+          console.error('❌ Email failed:', emailResult.error);
           toast.warning('Booking confirmed but email failed');
         }
       } else {
-        console.warn('⚠️ No valid guestEmail found in booking data');
-        console.warn('📧 guestEmail value:', guestEmail);
-        
-        // ✅ Debug: Send test email to admin if guestEmail is missing
-        console.log('📧 Sending test email to admin for debugging...');
-        const testResult = await sendUserEmail({
-          bookingId: bookingId,
-          guestEmail: 'lasyainnrooms@gmail.com',
-          guestName: 'TEST - ' + (bookingData?.guestName || 'Guest'),
-          guestPhone: bookingData?.guestPhone || 'N/A',
-          roomName: bookingData?.roomName || 'Room',
-          checkInDate: bookingData?.checkInDate || 'N/A',
-          checkInTime: bookingData?.checkInTime || 'N/A',
-          checkOutDate: bookingData?.checkOutDate || 'N/A',
-          checkOutTime: bookingData?.checkOutTime || 'N/A',
-          totalHours: bookingData?.totalHours || 24,
-          totalPrice: bookingData?.totalPrice || 0
-        });
-        console.log('📧 Test Email Result:', testResult);
+        console.warn('⚠️ No valid guestEmail found');
       }
       
-      // 4. Show toast
       toast.success(
         (t) => (
           <div>
             <div><strong>✅ Booking Confirmed!</strong></div>
             <div>👤 {bookingData?.guestName || 'Guest'}</div>
             <div>📱 {bookingData?.guestPhone || 'N/A'}</div>
-            <div>📧 Email sent to {bookingData?.guestEmail || 'N/A'}</div>
           </div>
         ),
         { duration: 5000 }
@@ -131,7 +109,7 @@ const AdminBookings = () => {
       
     } catch (error) {
       console.error('❌ Accept error:', error);
-      toast.error('Booking confirmed but email failed');
+      toast.error('Failed to accept booking');
     }
   };
 
@@ -233,11 +211,13 @@ const AdminBookings = () => {
           <thead>
             <tr>
               <th>Guest</th>
+              <th>Contact</th>
               <th>Room</th>
               <th>Check-in</th>
               <th>Check-out</th>
               <th>Amount</th>
               <th>Aadhar</th>
+              <th>All Guests Aadhar</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -245,33 +225,110 @@ const AdminBookings = () => {
           <tbody>
             {filteredBookings.map((booking) => (
               <tr key={booking.id}>
+                {/* Guest Name */}
                 <td>
                   <div className="guest-cell-pro">
                     <strong>{booking.guestName || booking.userName}</strong>
-                    <span>{booking.guestPhone}</span>
-                    <small>{booking.guestEmail}</small>
+                    <small style={{ display: 'block', color: '#888', fontSize: '11px' }}>
+                      {booking.guestEmail || booking.userEmail || 'N/A'}
+                    </small>
                   </div>
                 </td>
-                <td>{booking.roomName}</td>
+                
+                {/* Contact */}
                 <td>
-                  {booking.checkInDate}<br /><small>⏰ {booking.checkInTime}</small>
+                  <div className="contact-cell-pro">
+                    <div>📧 {booking.guestEmail || booking.userEmail || 'N/A'}</div>
+                    <div>📱 {booking.guestPhone || 'N/A'}</div>
+                  </div>
                 </td>
+                
+                {/* Room */}
                 <td>
-                  {booking.checkOutDate}<br /><small>⏰ {booking.checkOutTime}</small>
+                  <div className="room-cell-pro">
+                    <span className="room-name">{booking.roomName}</span>
+                    <span className="room-type" style={{ fontSize: '11px', color: '#888', display: 'block' }}>
+                      {booking.roomType === 'ac' ? '❄️ AC' : '🌬️ Non-AC'}
+                    </span>
+                  </div>
                 </td>
-                <td>₹{booking.totalPrice}</td>
+                
+                {/* Check-in */}
+                <td>
+                  <div className="dates-cell-pro">
+                    <span className="date-in">📅 {booking.checkInDate}</span>
+                    <span className="time-in" style={{ fontSize: '11px', color: '#888', display: 'block' }}>
+                      ⏰ {booking.checkInTime}
+                    </span>
+                  </div>
+                </td>
+                
+                {/* Check-out */}
+                <td>
+                  <div className="dates-cell-pro">
+                    <span className="date-out">📅 {booking.checkOutDate}</span>
+                    <span className="time-out" style={{ fontSize: '11px', color: '#888', display: 'block' }}>
+                      ⏰ {booking.checkOutTime}
+                    </span>
+                  </div>
+                </td>
+                
+                {/* Amount */}
+                <td>
+                  <span className="amount-cell-pro">₹{booking.totalPrice}</span>
+                  <span className="days-cell" style={{ fontSize: '11px', color: '#888', display: 'block' }}>
+                    {booking.totalDays || 1} days
+                  </span>
+                </td>
+                
+                {/* Primary Guest Aadhar */}
                 <td>
                   {booking.aadharPhoto ? (
-                    <button className="btn-aadhar-pro" onClick={() => setSelectedAadhar(booking.aadharPhoto)}>🪪 View</button>
+                    <button 
+                      className="btn-aadhar-pro" 
+                      onClick={() => setSelectedAadhar(booking.aadharPhoto)}
+                      style={{
+                        padding: '4px 10px',
+                        background: '#f0c040',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      🪪 View
+                    </button>
                   ) : (
-                    <span className="no-aadhar">Not uploaded</span>
+                    <span className="no-aadhar" style={{ color: '#888', fontSize: '12px' }}>Not uploaded</span>
                   )}
+                  <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+                    {booking.aadharNumber ? `****${booking.aadharNumber.slice(-4)}` : 'N/A'}
+                  </div>
                 </td>
+                
+                {/* ✅ All Guests Aadhar Numbers */}
+                <td>
+                  <div className="guest-aadhar-list">
+                    {booking.guestAadharNumbers && booking.guestAadharNumbers.length > 0 ? (
+                      booking.guestAadharNumbers.map((aadhar, index) => (
+                        <div key={index} style={{ fontSize: '12px', color: '#555' }}>
+                          Guest {index + 1}: ****{aadhar.slice(-4)}
+                        </div>
+                      ))
+                    ) : (
+                      <span className="no-aadhar" style={{ color: '#888', fontSize: '12px' }}>N/A</span>
+                    )}
+                  </div>
+                </td>
+                
+                {/* Status */}
                 <td>
                   <span className={`status-badge-pro ${booking.status || 'pending'}`}>
                     {booking.status || 'pending'}
                   </span>
                 </td>
+                
+                {/* Actions */}
                 <td>
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                     {booking.status === 'pending' && (
@@ -280,6 +337,15 @@ const AdminBookings = () => {
                           className="btn-confirm-pro" 
                           onClick={() => handleAcceptBooking(booking.id, booking)}
                           title="Confirm Booking"
+                          style={{
+                            padding: '4px 10px',
+                            background: '#4CAF50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
                         >
                           ✅ Accept
                         </button>
@@ -287,6 +353,15 @@ const AdminBookings = () => {
                           className="btn-cancel-pro" 
                           onClick={() => handleCancelBooking(booking.id, booking)}
                           title="Cancel Booking"
+                          style={{
+                            padding: '4px 10px',
+                            background: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
                         >
                           ❌ Cancel
                         </button>
@@ -295,11 +370,20 @@ const AdminBookings = () => {
                     
                     {booking.status === 'confirmed' && (
                       <>
-                        <span className="confirmed-badge">✅ Confirmed</span>
+                        <span className="confirmed-badge" style={{ color: '#4CAF50', fontSize: '12px' }}>✅ Confirmed</span>
                         <button 
                           className="btn-cancel-pro" 
                           onClick={() => handleCancelBooking(booking.id, booking)}
                           title="Cancel Booking"
+                          style={{
+                            padding: '4px 10px',
+                            background: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
                         >
                           ❌ Cancel
                         </button>
@@ -307,13 +391,22 @@ const AdminBookings = () => {
                     )}
                     
                     {booking.status === 'cancelled' && (
-                      <span className="cancelled-badge">❌ Cancelled</span>
+                      <span className="cancelled-badge" style={{ color: '#f44336', fontSize: '12px' }}>❌ Cancelled</span>
                     )}
                     
                     <button 
                       className="btn-delete-pro" 
                       onClick={() => handleDelete(booking.id)}
                       title="Delete Booking"
+                      style={{
+                        padding: '4px 10px',
+                        background: '#dc3545',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
                     >
                       🗑️ Delete
                     </button>
