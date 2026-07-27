@@ -20,6 +20,8 @@ const Booking = () => {
   const roomData = location.state || {};
   
   const [submitting, setSubmitting] = useState(false);
+  const [aadharFile, setAadharFile] = useState(null);
+  const [aadharPreview, setAadharPreview] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   const [showPayment, setShowPayment] = useState(false);
@@ -36,10 +38,9 @@ const Booking = () => {
   const [savedBookingId, setSavedBookingId] = useState(null);
   const [savedBookingData, setSavedBookingData] = useState(null);
 
-  // ✅ Multiple Guests State
-  const [guestDetails, setGuestDetails] = useState([]);
+  // ✅ Multiple Guests - Only Aadhar Numbers
+  const [guestAadharNumbers, setGuestAadharNumbers] = useState([]);
 
-  // ✅ Set room price based on type
   const getRoomPrice = (type) => {
     if (type === 'ac') return 1500;
     if (type === 'non-ac') return 1200;
@@ -69,20 +70,15 @@ const Booking = () => {
   });
 
   // ============================================
-  // ✅ UPDATE GUEST DETAILS WHEN GUESTS COUNT CHANGES
+  // ✅ UPDATE GUEST AADHAR NUMBERS WHEN GUESTS COUNT CHANGES
   // ============================================
   useEffect(() => {
     const count = formData.guests || 1;
-    const current = [...guestDetails];
+    const current = [...guestAadharNumbers];
     
     // Add new guests if count increased
     while (current.length < count) {
-      current.push({
-        name: '',
-        aadharNumber: '',
-        aadharFile: null,
-        aadharPreview: ''
-      });
+      current.push('');
     }
     
     // Remove extra guests if count decreased
@@ -90,40 +86,24 @@ const Booking = () => {
       current.pop();
     }
     
-    setGuestDetails(current);
+    setGuestAadharNumbers(current);
   }, [formData.guests]);
 
   // ============================================
-  // ✅ HANDLE GUEST FIELD CHANGES
+  // ✅ HANDLE GUEST AADHAR CHANGE
   // ============================================
-  const handleGuestChange = (index, field, value) => {
-    const updated = [...guestDetails];
-    updated[index][field] = value;
-    setGuestDetails(updated);
-  };
-
-  // ============================================
-  // ✅ HANDLE GUEST AADHAR UPLOAD
-  // ============================================
-  const handleGuestAadharUpload = (index, file) => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size should be less than 5MB');
-      return;
+  const handleGuestAadharChange = (index, value) => {
+    const updated = [...guestAadharNumbers];
+    // Allow only numbers and max 12 digits
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 12) {
+      updated[index] = cleaned;
+      setGuestAadharNumbers(updated);
     }
-    
-    const updated = [...guestDetails];
-    updated[index].aadharFile = file;
-    
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      updated[index].aadharPreview = reader.result;
-      setGuestDetails(updated);
-    };
-    reader.readAsDataURL(file);
   };
 
   // ============================================
-  // ✅ DATE FORMAT FUNCTIONS
+  // ✅ DATE FUNCTIONS
   // ============================================
   const getTodayDate = () => {
     const today = new Date();
@@ -239,6 +219,25 @@ const Booking = () => {
   const totalHours = Math.round(calculateResult.totalHours);
 
   // ============================================
+  // ✅ HANDLE AADHAR UPLOAD (Primary Guest)
+  // ============================================
+  const handleAadharUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size should be less than 5MB');
+        return;
+      }
+      setAadharFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAadharPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // ============================================
   // ✅ HANDLE FORM SUBMIT
   // ============================================
   const handleSubmit = async (e) => {
@@ -257,6 +256,26 @@ const Booking = () => {
       toast.error('Please enter your email');
       return;
     }
+    // ✅ Primary Guest Aadhar
+    if (!formData.aadharNumber || formData.aadharNumber.length !== 12) {
+      toast.error('Please enter valid 12-digit Aadhar number for primary guest');
+      return;
+    }
+    if (!formData.aadharName) {
+      toast.error('Please enter name as per Aadhar');
+      return;
+    }
+    if (!aadharFile) {
+      toast.error('Please upload Aadhar card photo');
+      return;
+    }
+    // ✅ All guests Aadhar numbers
+    for (let i = 0; i < guestAadharNumbers.length; i++) {
+      if (!guestAadharNumbers[i] || guestAadharNumbers[i].length !== 12) {
+        toast.error(`Please enter valid 12-digit Aadhar for Guest ${i + 1}`);
+        return;
+      }
+    }
     if (!formData.checkInDate || !formData.checkOutDate) {
       toast.error('Please select check-in and check-out dates');
       return;
@@ -266,29 +285,11 @@ const Booking = () => {
       return;
     }
     
-    // Check if check-out is after check-in
     const checkInDateTime = new Date(`${formData.checkInDate}T${formData.checkInTime}:00`);
     const checkOutDateTime = new Date(`${formData.checkOutDate}T${formData.checkOutTime}:00`);
     if (checkOutDateTime <= checkInDateTime) {
       toast.error('Check-out must be after check-in');
       return;
-    }
-    
-    // ✅ Validate all guests have Aadhar
-    for (let i = 0; i < guestDetails.length; i++) {
-      const guest = guestDetails[i];
-      if (!guest.name) {
-        toast.error(`Please enter name for Guest ${i + 1}`);
-        return;
-      }
-      if (!guest.aadharNumber || guest.aadharNumber.length !== 12) {
-        toast.error(`Please enter valid 12-digit Aadhar for Guest ${i + 1}`);
-        return;
-      }
-      if (!guest.aadharFile) {
-        toast.error(`Please upload Aadhar photo for Guest ${i + 1}`);
-        return;
-      }
     }
     
     if (!agreeTerms) {
@@ -308,21 +309,12 @@ const Booking = () => {
     setSubmitting(true);
 
     try {
-      // ✅ Upload all guest Aadhar photos
-      const guestAadharUrls = [];
-      for (let i = 0; i < guestDetails.length; i++) {
-        const guest = guestDetails[i];
-        if (guest.aadharFile) {
-          const url = await uploadFileToS3(guest.aadharFile, 'aadhar');
-          guestAadharUrls.push({
-            name: guest.name,
-            aadharNumber: guest.aadharNumber,
-            aadharPhoto: url
-          });
-        }
+      // ✅ Upload primary guest Aadhar photo
+      let aadharUrl = '';
+      if (aadharFile) {
+        aadharUrl = await uploadFileToS3(aadharFile, 'aadhar');
       }
 
-      // ✅ Get current room data
       const room = await getRoom(formData.roomId);
       const currentAvailable = room.availableRooms || 0;
       
@@ -338,7 +330,7 @@ const Booking = () => {
         isAvailable: newAvailable > 0
       });
 
-      // ✅ Create booking with all guests data
+      // ✅ Create booking with all guests Aadhar numbers
       const bookingData = {
         userId: user.uid,
         userName: user.displayName || 'Guest',
@@ -353,8 +345,13 @@ const Booking = () => {
         guestAddress: formData.guestAddress,
         guestCity: formData.guestCity,
         guestPincode: formData.guestPincode,
+        // ✅ Primary Guest Aadhar
+        aadharNumber: formData.aadharNumber,
+        aadharName: formData.aadharName,
+        aadharPhoto: aadharUrl,
+        // ✅ All guests Aadhar numbers (including primary)
+        guestAadharNumbers: guestAadharNumbers,
         guests: formData.guests,
-        guestAadharDetails: guestAadharUrls,  // ✅ All guests Aadhar
         checkInDate: formData.checkInDate,
         checkInTime: formData.checkInTime,
         checkOutDate: formData.checkOutDate,
@@ -369,12 +366,11 @@ const Booking = () => {
       };
 
       console.log('📝 Booking Data:', bookingData);
-      console.log('👥 Guest Aadhar Details:', guestAadharUrls);
+      console.log('👥 Guest Aadhar Numbers:', guestAadharNumbers);
 
       const bookingId = await addBooking(bookingData);
       console.log('✅ Booking saved with ID:', bookingId);
 
-      // ✅ Send notifications to Admin
       await sendAdminNotification({
         bookingId: bookingId,
         guestName: formData.guestName,
@@ -788,85 +784,104 @@ const Booking = () => {
           </div>
 
           {/* ========================================= */}
-          {/* ✅ MULTIPLE GUESTS - AADHAR DETAILS */}
+          {/* ✅ PRIMARY GUEST AADHAR - Photo + Number */}
           {/* ========================================= */}
-          <div className="booking-section-pro">
-            <h3>🪪 Guest Aadhar Details</h3>
+          <div className="booking-section-pro aadhar-section-pro">
+            <h3>🪪 Primary Guest Aadhar Details <span className="required">*</span></h3>
+            <div className="booking-grid-pro">
+              <div>
+                <label>Aadhar Number <span className="required">*</span></label>
+                <input
+                  type="text"
+                  value={formData.aadharNumber}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    if (value.length <= 12) {
+                      setFormData({...formData, aadharNumber: value});
+                    }
+                  }}
+                  required
+                  maxLength="12"
+                  placeholder="12-digit Aadhar number"
+                />
+              </div>
+              <div>
+                <label>Name as per Aadhar <span className="required">*</span></label>
+                <input
+                  type="text"
+                  value={formData.aadharName}
+                  onChange={(e) => setFormData({...formData, aadharName: e.target.value})}
+                  required
+                  placeholder="Name as per Aadhar"
+                />
+              </div>
+              <div className="full-width">
+                <label>Aadhar Photo <span className="required">*</span></label>
+                <div className="file-upload-pro">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAadharUpload}
+                    required
+                    id="aadhar-upload"
+                  />
+                  <label htmlFor="aadhar-upload" className="upload-label-pro">
+                    {aadharPreview ? (
+                      <img src={aadharPreview} alt="Aadhar" className="aadhar-preview-pro" />
+                    ) : (
+                      <div>
+                        <span>📤</span>
+                        <p>Click to upload Aadhar photo</p>
+                        <small>JPG, PNG (Max 5MB)</small>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================= */}
+          {/* ✅ ALL GUESTS - Only Aadhar Numbers */}
+          {/* ========================================= */}
+          <div className="booking-section-pro guest-aadhar-section">
+            <h3>👥 All Guests Aadhar Numbers</h3>
             <p style={{ color: '#888', fontSize: '14px', marginBottom: '15px' }}>
-              Please provide Aadhar details for all {formData.guests} guests
+              Please enter Aadhar numbers for all {formData.guests} guests (including primary guest)
             </p>
             
-            {guestDetails.map((guest, index) => (
-              <div key={index} style={{
+            {guestAadharNumbers.map((aadhar, index) => (
+              <div key={index} className="guest-aadhar-row" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '15px',
+                marginBottom: '10px',
+                padding: '10px 15px',
                 background: '#f8f9fa',
-                border: '1px solid #e0e0e0',
-                borderRadius: '12px',
-                padding: '20px',
-                marginBottom: '15px'
+                borderRadius: '8px',
+                border: '1px solid #e0e0e0'
               }}>
-                <h4 style={{ margin: '0 0 15px 0', color: '#1a1a2e' }}>
-                  👤 Guest {index + 1}
-                </h4>
-                
-                <div className="booking-grid-pro">
-                  {/* Guest Name */}
-                  <div>
-                    <label>Guest Name <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      placeholder="Enter guest name"
-                      value={guest.name}
-                      onChange={(e) => handleGuestChange(index, 'name', e.target.value)}
-                      required
-                    />
-                  </div>
-                  
-                  {/* Aadhar Number */}
-                  <div>
-                    <label>Aadhar Number <span className="required">*</span></label>
-                    <input
-                      type="text"
-                      placeholder="12-digit Aadhar"
-                      value={guest.aadharNumber}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, '');
-                        if (value.length <= 12) {
-                          handleGuestChange(index, 'aadharNumber', value);
-                        }
-                      }}
-                      maxLength="12"
-                      required
-                    />
-                  </div>
-                  
-                  {/* Aadhar Photo */}
-                  <div className="full-width">
-                    <label>Aadhar Photo <span className="required">*</span></label>
-                    <div className="file-upload-pro">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) handleGuestAadharUpload(index, file);
-                        }}
-                        required
-                        id={`aadhar-${index}`}
-                      />
-                      <label htmlFor={`aadhar-${index}`} className="upload-label-pro">
-                        {guest.aadharPreview ? (
-                          <img src={guest.aadharPreview} alt={`Guest ${index + 1} Aadhar`} style={{ maxHeight: '120px' }} />
-                        ) : (
-                          <div>
-                            <span>📤</span>
-                            <p>Upload Aadhar photo</p>
-                            <small>JPG, PNG (Max 5MB)</small>
-                          </div>
-                        )}
-                      </label>
-                    </div>
-                  </div>
-                </div>
+                <span style={{ fontWeight: '600', minWidth: '80px', color: '#1a1a2e' }}>
+                  Guest {index + 1}
+                </span>
+                <input
+                  type="text"
+                  placeholder="12-digit Aadhar number"
+                  value={aadhar}
+                  onChange={(e) => handleGuestAadharChange(index, e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                  maxLength="12"
+                  required
+                />
+                <span style={{ fontSize: '12px', color: '#888' }}>
+                  {aadhar.length}/12
+                </span>
               </div>
             ))}
           </div>
