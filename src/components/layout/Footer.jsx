@@ -41,7 +41,7 @@ const Footer = () => {
           <ul>
             <li><span className="footer-icon">📍</span> House No. 1583,1st main road,near Aster CMI Hospital,sahakrnagar post,sanjeevini nagar,kodigehalli gate,Bangalore,Karnataka - 560092</li>
             <li><span className="footer-icon">📞</span> +91 9108217506</li>
-            <li><span className="footer-icon">✉️</span> info@lasyainnrooms.com</li>
+            <li><span className="footer-icon">✉️</span> lasyainnrooms@gmail.com</li>
             <li><span className="footer-icon">🕐</span> Open 24/7</li>
           </ul>
         </div>
