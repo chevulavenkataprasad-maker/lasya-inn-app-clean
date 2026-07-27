@@ -6,7 +6,6 @@ import { getRooms, getAllBookings, deleteBooking } from '../../firebase/firestor
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { markNotificationAsRead } from '../../firebase/notificationService';
-import { playNotificationSound } from '../../utils/soundService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -43,7 +42,7 @@ const AdminDashboard = () => {
   }, []);
 
   // ============================================
-  // ✅ REAL-TIME NOTIFICATIONS LISTENER
+  // ✅ REAL-TIME NOTIFICATIONS LISTENER (No Sound)
   // ============================================
   useEffect(() => {
     const q = query(
@@ -53,16 +52,12 @@ const AdminDashboard = () => {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = [];
-      let newCount = 0;
       
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const docData = { id: change.doc.id, ...change.doc.data() };
           data.push(docData);
-          newCount++;
           console.log('🆕 New admin notification:', docData);
-          // Play sound for new notification
-          playNotificationSound('admin');
         }
       });
       

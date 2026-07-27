@@ -122,7 +122,7 @@ const Navbar = () => {
                   ⚙️ Admin
                 </Link>
               )}
-              {/* ✅ Notifications Bell with Badge */}
+              {/* ✅ Notifications Bell with Badge - NO SOUND */}
               <Link to="/notifications" className="nav-btn-pro notification-btn" style={{ position: 'relative' }}>
                 🔔
                 {unreadCount > 0 && (
@@ -198,7 +198,7 @@ const Navbar = () => {
                 ⚙️ Admin
               </Link>
             )}
-            {/* ✅ Notifications in Mobile Menu */}
+            {/* ✅ Notifications in Mobile Menu - NO SOUND */}
             <Link to="/notifications" className="mobile-link-pro" onClick={() => setMobileMenu(false)}>
               🔔 Notifications
               {unreadCount > 0 && (

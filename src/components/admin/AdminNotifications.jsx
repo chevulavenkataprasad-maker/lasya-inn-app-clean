@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { markNotificationAsRead } from '../../firebase/notificationService';
-import { playNotificationSound } from '../../utils/soundService';
+// ❌ Sound removed - No sound for admin notifications
+// import { playNotificationSound } from '../../utils/soundService';
 
 const AdminNotifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -12,7 +13,7 @@ const AdminNotifications = () => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   // ============================================
-  // ✅ REAL-TIME LISTENER FOR ADMIN NOTIFICATIONS
+  // ✅ REAL-TIME LISTENER FOR ADMIN NOTIFICATIONS - NO SOUND
   // ============================================
   useEffect(() => {
     const q = query(
@@ -52,10 +53,10 @@ const AdminNotifications = () => {
       
       console.log('🔔 Admin notifications:', data.length, 'unread:', unread);
       
-      // ✅ Play sound for new admin notifications
-      if (newCount > 0) {
-        playNotificationSound('admin');
-      }
+      // ❌ Sound removed - No sound
+      // if (newCount > 0) {
+      //   playNotificationSound('admin');
+      // }
     });
 
     return () => {

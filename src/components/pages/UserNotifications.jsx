@@ -5,7 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { markNotificationAsRead } from '../../firebase/notificationService';
-import { playNotificationSound } from '../../utils/soundService';
+// ❌ Remove sound import
+// import { playNotificationSound } from '../../utils/soundService';
 
 const UserNotifications = () => {
   const { user } = useAuth();
@@ -13,7 +14,7 @@ const UserNotifications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // ============================================
-  // ✅ REAL-TIME LISTENER FOR USER NOTIFICATIONS
+  // ✅ REAL-TIME LISTENER FOR USER NOTIFICATIONS (NO SOUND)
   // ============================================
   useEffect(() => {
     if (!user) {
@@ -26,18 +27,16 @@ const UserNotifications = () => {
     const q = query(
       collection(db, 'notifications'),
       where('target', '==', 'user'),
-      where('userId', '==', user.uid)  // ✅ Match current user
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = [];
-      let newCount = 0;
       
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const docData = { id: change.doc.id, ...change.doc.data() };
           data.push(docData);
-          newCount++;
         }
       });
       
@@ -60,10 +59,10 @@ const UserNotifications = () => {
       
       console.log('📬 Notifications updated:', data.length, 'unread:', unread);
       
-      // ✅ Play sound for new notifications
-      if (newCount > 0) {
-        playNotificationSound('user');
-      }
+      // ❌ Remove sound
+      // if (newCount > 0) {
+      //   playNotificationSound('user');
+      // }
     });
 
     return () => {
