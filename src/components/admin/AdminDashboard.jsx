@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getRooms, getAllBookings, deleteBooking } from '../../firebase/firestore';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { markNotificationAsRead } from '../../firebase/notificationService';
+import { markNotificationAsRead, deleteNotification, deleteAllNotifications } from '../../firebase/notificationService';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -42,7 +42,7 @@ const AdminDashboard = () => {
   }, []);
 
   // ============================================
-  // ✅ REAL-TIME NOTIFICATIONS LISTENER (No Sound)
+  // ✅ REAL-TIME NOTIFICATIONS LISTENER
   // ============================================
   useEffect(() => {
     const q = query(
@@ -142,6 +142,55 @@ const AdminDashboard = () => {
       await markNotificationAsRead(notificationId);
     } catch (error) {
       console.error('❌ Error marking notification:', error);
+    }
+  };
+
+  // ============================================
+  // ✅ DELETE SINGLE NOTIFICATION - ADDED
+  // ============================================
+  const handleDeleteNotification = async (notificationId, e) => {
+    e.stopPropagation();
+    
+    if (!window.confirm('Are you sure you want to delete this notification?')) {
+      return;
+    }
+
+    try {
+      const result = await deleteNotification(notificationId);
+      if (result.success) {
+        toast.success('✅ Notification deleted');
+      } else {
+        toast.error('Failed to delete notification: ' + result.error);
+      }
+    } catch (error) {
+      console.error('❌ Delete error:', error);
+      toast.error('Failed to delete notification');
+    }
+  };
+
+  // ============================================
+  // ✅ DELETE ALL NOTIFICATIONS - ADDED
+  // ============================================
+  const handleDeleteAllNotifications = async () => {
+    if (notifications.length === 0) {
+      toast.error('No notifications to delete');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete ALL notifications?')) {
+      return;
+    }
+
+    try {
+      const result = await deleteAllNotifications();
+      if (result.success) {
+        toast.success('✅ All notifications deleted');
+      } else {
+        toast.error('Failed to delete notifications: ' + result.error);
+      }
+    } catch (error) {
+      console.error('❌ Delete all error:', error);
+      toast.error('Failed to delete notifications');
     }
   };
 
@@ -250,7 +299,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* ========================================= */}
-      {/* NOTIFICATIONS SECTION - REAL-TIME */}
+      {/* NOTIFICATIONS SECTION - WITH DELETE BUTTONS */}
       {/* ========================================= */}
       <div className="admin-notifications-section" style={{
         background: 'white',
@@ -260,19 +309,52 @@ const AdminDashboard = () => {
         boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <h3 style={{ margin: 0 }}>🔔 Notifications</h3>
-          {unreadCount > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h3 style={{ margin: 0 }}>🔔 Notifications</h3>
+            {unreadCount > 0 && (
+              <span style={{
+                background: '#dc3545',
+                color: 'white',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                animation: 'pulse 1s ease-in-out infinite'
+              }}>
+                {unreadCount} new
+              </span>
+            )}
             <span style={{
-              background: '#dc3545',
-              color: 'white',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              fontSize: '14px',
-              animation: 'pulse 1s ease-in-out infinite'
+              color: '#888',
+              fontSize: '13px'
             }}>
-              {unreadCount} new
+              ({notifications.length} total)
             </span>
-          )}
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {/* ✅ Delete All Button */}
+            {notifications.length > 0 && (
+              <button
+                onClick={handleDeleteAllNotifications}
+                style={{
+                  padding: '6px 16px',
+                  background: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#c82333';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#dc3545';
+                }}
+              >
+                🗑️ Delete All
+              </button>
+            )}
+          </div>
         </div>
 
         {notifications.length === 0 ? (
@@ -284,7 +366,6 @@ const AdminDashboard = () => {
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                onClick={() => handleMarkNotificationRead(notification.id)}
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
@@ -294,8 +375,8 @@ const AdminDashboard = () => {
                   borderLeft: !notification.read ? '4px solid #2196F3' : '4px solid transparent',
                   borderBottom: '1px solid #f0f0f0',
                   borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  position: 'relative'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = '#f8f9fa';
@@ -304,33 +385,76 @@ const AdminDashboard = () => {
                   e.currentTarget.style.background = !notification.read ? '#f0f7ff' : 'transparent';
                 }}
               >
-                <div style={{ fontSize: '24px' }}>
-                  {notification.type === 'new_booking' ? '🆕' : '✅'}
+                {/* Notification Content - Click to mark read */}
+                <div 
+                  style={{ 
+                    flex: 1, 
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}
+                  onClick={() => handleMarkNotificationRead(notification.id)}
+                >
+                  <div style={{ fontSize: '24px' }}>
+                    {notification.type === 'new_booking' ? '🆕' : '✅'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                      {notification.title}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#555' }}>
+                      {notification.message}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                      👤 {notification.guestName} • 📱 {notification.guestPhone} • 🛏️ {notification.roomName}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>
+                      {notification.createdAt?.toDate?.()?.toLocaleString() || 'Just now'}
+                    </div>
+                  </div>
+                  {!notification.read && (
+                    <div style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: '#2196F3',
+                      flexShrink: 0,
+                      marginTop: '8px'
+                    }} />
+                  )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                    {notification.title}
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#555' }}>
-                    {notification.message}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-                    👤 {notification.guestName} • 📱 {notification.guestPhone} • 🛏️ {notification.roomName}
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#aaa', marginTop: '4px' }}>
-                    {notification.createdAt?.toDate?.()?.toLocaleString() || 'Just now'}
-                  </div>
-                </div>
-                {!notification.read && (
-                  <div style={{
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    background: '#2196F3',
+
+                {/* ✅ Delete Button - Individual */}
+                <button
+                  onClick={(e) => handleDeleteNotification(notification.id, e)}
+                  style={{
+                    padding: '4px 10px',
+                    background: 'transparent',
+                    color: '#dc3545',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    opacity: 0.6,
+                    transition: 'all 0.2s',
                     flexShrink: 0,
-                    marginTop: '8px'
-                  }} />
-                )}
+                    marginTop: '4px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.opacity = '1';
+                    e.target.style.background = '#dc3545';
+                    e.target.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.opacity = '0.6';
+                    e.target.style.background = 'transparent';
+                    e.target.style.color = '#dc3545';
+                  }}
+                  title="Delete notification"
+                >
+                  ✕
+                </button>
               </div>
             ))}
           </div>

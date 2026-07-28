@@ -9,6 +9,7 @@ import {
   where, 
   orderBy, 
   updateDoc, 
+  deleteDoc,  // ✅ Add deleteDoc
   doc, 
   serverTimestamp 
 } from 'firebase/firestore';
@@ -33,11 +34,11 @@ export const sendAdminNotification = async (bookingData) => {
       checkOutDate: checkOutDate,
       totalPrice: totalPrice,
       read: false,
-      target: 'admin',  // ✅ Admin target
+      target: 'admin',
       createdAt: serverTimestamp()
     });
 
-    console.log('✅ Admin notification sent to Firestore');
+    console.log('✅ Admin notification sent');
     return { success: true };
 
   } catch (error) {
@@ -53,12 +54,6 @@ export const sendUserNotification = async (bookingData) => {
   try {
     const { bookingId, userId, guestName, roomName, checkInDate, checkOutDate, totalPrice } = bookingData;
 
-    // ✅ Validate userId
-    if (!userId) {
-      console.error('❌ userId is required for user notification');
-      return { success: false, error: 'userId missing' };
-    }
-
     const notificationsRef = collection(db, 'notifications');
     await addDoc(notificationsRef, {
       bookingId: bookingId,
@@ -71,12 +66,12 @@ export const sendUserNotification = async (bookingData) => {
       checkOutDate: checkOutDate,
       totalPrice: totalPrice,
       read: false,
-      target: 'user',  // ✅ User target
-      userId: userId,  // ✅ User ID (Important!)
+      target: 'user',
+      userId: userId,
       createdAt: serverTimestamp()
     });
 
-    console.log('✅ User notification sent to Firestore');
+    console.log('✅ User notification sent');
     return { success: true };
 
   } catch (error) {
@@ -118,16 +113,11 @@ export const getAdminNotifications = async () => {
 // ============================================
 export const getUserNotifications = async (userId) => {
   try {
-    if (!userId) {
-      console.log('⚠️ No userId provided');
-      return [];
-    }
-
     const notificationsRef = collection(db, 'notifications');
     const q = query(
       notificationsRef,
       where('target', '==', 'user'),
-      where('userId', '==', userId),  // ✅ Filter by userId
+      where('userId', '==', userId),
       orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
@@ -140,7 +130,6 @@ export const getUserNotifications = async (userId) => {
       });
     });
     
-    console.log('📬 User notifications fetched:', notifications.length);
     return notifications;
   } catch (error) {
     console.error('❌ Error fetching user notifications:', error);
@@ -161,5 +150,49 @@ export const markNotificationAsRead = async (notificationId) => {
   } catch (error) {
     console.error('❌ Error marking notification:', error);
     return { success: false };
+  }
+};
+
+// ============================================
+// ✅ DELETE NOTIFICATION - ADDED
+// ============================================
+export const deleteNotification = async (notificationId) => {
+  try {
+    if (!notificationId) {
+      throw new Error('Notification ID is required');
+    }
+    const notificationRef = doc(db, 'notifications', notificationId);
+    await deleteDoc(notificationRef);
+    console.log('✅ Notification deleted:', notificationId);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error deleting notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================
+// ✅ DELETE ALL NOTIFICATIONS - ADDED
+// ============================================
+export const deleteAllNotifications = async () => {
+  try {
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(
+      notificationsRef,
+      where('target', '==', 'admin')
+    );
+    const snapshot = await getDocs(q);
+    
+    const deletePromises = [];
+    snapshot.forEach((doc) => {
+      deletePromises.push(deleteDoc(doc.ref));
+    });
+    
+    await Promise.all(deletePromises);
+    console.log('✅ All admin notifications deleted');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error deleting all notifications:', error);
+    return { success: false, error: error.message };
   }
 };
