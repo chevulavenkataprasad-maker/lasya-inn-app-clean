@@ -38,19 +38,34 @@ const AdminBookings = () => {
   }, []);
 
   // ============================================
+  // ✅ DOWNLOAD AADHAR IMAGE - ADDED
+  // ============================================
+  const handleDownloadAadhar = (imageUrl, guestName) => {
+    if (!imageUrl) {
+      toast.error('No Aadhar image available');
+      return;
+    }
+
+    // Create a temporary anchor element
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = `aadhar_${guestName || 'guest'}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success(`📥 Downloading Aadhar for ${guestName || 'Guest'}`);
+  };
+
+  // ============================================
   // ✅ ADMIN ACCEPT BOOKING
   // ============================================
   const handleAcceptBooking = async (bookingId, bookingData) => {
     try {
-      // 1. Update booking status
       await updateBookingStatus(bookingId, 'confirmed');
       
-      console.log('📋 ===== ACCEPT BOOKING =====');
-      console.log('📋 Booking ID:', bookingId);
-      console.log('📋 Booking Data:', bookingData);
-      console.log('📧 Guest Email:', bookingData?.guestEmail);
+      console.log('📋 Accepting booking:', bookingData);
       
-      // 2. Send In-App notification
       if (bookingData?.userId) {
         await sendUserNotification({
           bookingId: bookingId,
@@ -65,7 +80,6 @@ const AdminBookings = () => {
         console.log('✅ In-app notification sent');
       }
 
-      // 3. Send Email to user
       const guestEmail = bookingData?.guestEmail;
       if (guestEmail && guestEmail.trim() !== '') {
         const cleanEmail = guestEmail.trim();
@@ -92,10 +106,8 @@ const AdminBookings = () => {
           console.error('❌ Email failed:', emailResult.error);
           toast.warning('Booking confirmed but email failed');
         }
-      } else {
-        console.warn('⚠️ No valid guestEmail found');
       }
-      
+
       toast.success(
         (t) => (
           <div>
@@ -284,35 +296,83 @@ const AdminBookings = () => {
                 {/* Primary Guest Aadhar */}
                 <td>
                   {booking.aadharPhoto ? (
-                    <button 
-                      className="btn-aadhar-pro" 
-                      onClick={() => setSelectedAadhar(booking.aadharPhoto)}
-                      style={{
-                        padding: '4px 10px',
-                        background: '#f0c040',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '12px'
-                      }}
-                    >
-                      🪪 View
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <button 
+                        className="btn-aadhar-pro" 
+                        onClick={() => setSelectedAadhar(booking.aadharPhoto)}
+                        style={{
+                          padding: '4px 10px',
+                          background: '#f0c040',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        🪪 View
+                      </button>
+                      <button
+                        onClick={() => handleDownloadAadhar(booking.aadharPhoto, booking.guestName)}
+                        style={{
+                          padding: '4px 10px',
+                          background: '#2196F3',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📥 Download
+                      </button>
+                      <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+                        {booking.aadharNumber ? `****${booking.aadharNumber.slice(-4)}` : 'N/A'}
+                      </div>
+                    </div>
                   ) : (
                     <span className="no-aadhar" style={{ color: '#888', fontSize: '12px' }}>Not uploaded</span>
                   )}
-                  <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
-                    {booking.aadharNumber ? `****${booking.aadharNumber.slice(-4)}` : 'N/A'}
-                  </div>
                 </td>
                 
-                {/* ✅ All Guests Aadhar Numbers */}
+                {/* ✅ All Guests Aadhar - With Download Buttons */}
                 <td>
                   <div className="guest-aadhar-list">
-                    {booking.guestAadharNumbers && booking.guestAadharNumbers.length > 0 ? (
-                      booking.guestAadharNumbers.map((aadhar, index) => (
-                        <div key={index} style={{ fontSize: '12px', color: '#555' }}>
-                          Guest {index + 1}: ****{aadhar.slice(-4)}
+                    {booking.guestAadharDetails && booking.guestAadharDetails.length > 0 ? (
+                      booking.guestAadharDetails.map((guest, index) => (
+                        <div key={index} style={{ 
+                          fontSize: '12px', 
+                          color: '#555',
+                          padding: '4px 0',
+                          borderBottom: '1px solid #f0f0f0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px'
+                        }}>
+                          <span>Guest {index + 1}: ****{guest.aadharNumber?.slice(-4) || 'N/A'}</span>
+                          {guest.aadharPhoto && (
+                            <button
+                              onClick={() => handleDownloadAadhar(guest.aadharPhoto, guest.name || `Guest ${index + 1}`)}
+                              style={{
+                                padding: '2px 8px',
+                                background: '#4CAF50',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                whiteSpace: 'nowrap'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.background = '#45a049';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.background = '#4CAF50';
+                              }}
+                            >
+                              📥 Download
+                            </button>
+                          )}
                         </div>
                       ))
                     ) : (
@@ -422,8 +482,31 @@ const AdminBookings = () => {
         <div className="aadhar-popup-overlay" onClick={() => setSelectedAadhar(null)}>
           <div className="aadhar-popup-content" onClick={(e) => e.stopPropagation()}>
             <button className="aadhar-popup-close" onClick={() => setSelectedAadhar(null)}>✕</button>
-            <img src={selectedAadhar} alt="Aadhar Card" />
+            <img src={selectedAadhar} alt="Aadhar Card" style={{ maxWidth: '100%', maxHeight: '80vh' }} />
             <p className="aadhar-popup-title">🪪 Aadhar Card</p>
+            <button
+              onClick={() => {
+                const link = document.createElement('a');
+                link.href = selectedAadhar;
+                link.download = `aadhar_${Date.now()}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                toast.success('📥 Downloading Aadhar...');
+              }}
+              style={{
+                padding: '8px 20px',
+                background: '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                marginTop: '10px'
+              }}
+            >
+              📥 Download
+            </button>
           </div>
         </div>
       )}
