@@ -14,6 +14,7 @@ const AdminBookings = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [selectedAadhar, setSelectedAadhar] = useState(null);
+  const [showFullAadhar, setShowFullAadhar] = useState(false); // ✅ New state for toggling full Aadhar visibility
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -169,6 +170,32 @@ const AdminBookings = () => {
     }
   };
 
+  // ✅ Function to format Aadhar with spaces (XXXX XXXX XXXX)
+  const formatAadhar = (number) => {
+    if (!number) return 'N/A';
+    const str = String(number).replace(/\s/g, '');
+    if (str.length === 12) {
+      return `${str.slice(0, 4)} ${str.slice(4, 8)} ${str.slice(8, 12)}`;
+    }
+    return str;
+  };
+
+  // ✅ Function to mask Aadhar (XXXX XXXX 1234)
+  const maskAadhar = (number) => {
+    if (!number) return 'N/A';
+    const str = String(number).replace(/\s/g, '');
+    if (str.length === 12) {
+      return `XXXX XXXX ${str.slice(8, 12)}`;
+    }
+    return str;
+  };
+
+  // ✅ Get display value for Aadhar based on visibility toggle
+  const getDisplayAadhar = (number) => {
+    if (!number) return 'N/A';
+    return showFullAadhar ? formatAadhar(number) : maskAadhar(number);
+  };
+
   const filteredBookings = filter === 'all' ? bookings : bookings.filter(b => b?.status === filter);
 
   if (loading) {
@@ -188,8 +215,55 @@ const AdminBookings = () => {
           <p>View and update all bookings</p>
           <span className="room-count-pro">{bookings.length} bookings</span>
         </div>
-        <Link to="/admin" className="btn-back-pro">← Back</Link>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {/* ✅ Toggle Button for Full Aadhar Visibility */}
+          <button
+            onClick={() => setShowFullAadhar(!showFullAadhar)}
+            style={{
+              padding: '8px 16px',
+              background: showFullAadhar ? '#ff4444' : '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            }}
+          >
+            {showFullAadhar ? '🔒 Hide Full Aadhar' : '🔓 Show Full Aadhar'}
+          </button>
+          <Link to="/admin" className="btn-back-pro">← Back</Link>
+        </div>
       </div>
+
+      {/* ✅ Warning Banner when Full Aadhar is visible */}
+      {showFullAadhar && (
+        <div style={{
+          background: '#fff3cd',
+          border: '1px solid #ffc107',
+          borderRadius: '8px',
+          padding: '12px 20px',
+          marginBottom: '20px',
+          color: '#856404'
+        }}>
+          ⚠️ <strong>Security Warning:</strong> Full Aadhar numbers are visible. 
+          Ensure you are in a secure environment. Only authorized personnel should view this data.
+          <button
+            onClick={() => setShowFullAadhar(false)}
+            style={{
+              marginLeft: '15px',
+              padding: '4px 12px',
+              background: '#ffc107',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Hide Now
+          </button>
+        </div>
+      )}
 
       <div className="filter-section-pro">
         {['all', 'pending', 'confirmed', 'cancelled'].map((f) => (
@@ -206,8 +280,8 @@ const AdminBookings = () => {
         ))}
       </div>
 
-      <div className="admin-table-pro">
-        <table>
+      <div className="admin-table-pro" style={{ overflowX: 'auto' }}>
+        <table style={{ minWidth: '1200px' }}>
           <thead>
             <tr>
               <th>Guest</th>
@@ -296,23 +370,51 @@ const AdminBookings = () => {
                         fontSize: '12px'
                       }}
                     >
-                      🪪 View
+                      🪪 View Image
                     </button>
                   ) : (
                     <span className="no-aadhar" style={{ color: '#888', fontSize: '12px' }}>Not uploaded</span>
                   )}
-                  <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
-                    {booking.aadharNumber ? `****${booking.aadharNumber.slice(-4)}` : 'N/A'}
+                  <div style={{ fontSize: '11px', color: '#555', marginTop: '2px', fontWeight: 'bold' }}>
+                    {booking.aadharNumber ? getDisplayAadhar(booking.aadharNumber) : 'N/A'}
                   </div>
                 </td>
                 
-                {/* ✅ All Guests Aadhar Numbers */}
+                {/* ✅ All Guests Aadhar Numbers - NOW SHOWING FULL AADHAR */}
                 <td>
-                  <div className="guest-aadhar-list">
+                  <div className="guest-aadhar-list" style={{ minWidth: '150px' }}>
                     {booking.guestAadharNumbers && booking.guestAadharNumbers.length > 0 ? (
                       booking.guestAadharNumbers.map((aadhar, index) => (
-                        <div key={index} style={{ fontSize: '12px', color: '#555' }}>
-                          Guest {index + 1}: ****{aadhar.slice(-4)}
+                        <div 
+                          key={index} 
+                          style={{ 
+                            fontSize: '13px', 
+                            color: '#222',
+                            fontWeight: showFullAadhar ? 'bold' : 'normal',
+                            padding: '2px 0',
+                            borderBottom: index < booking.guestAadharNumbers.length - 1 ? '1px solid #eee' : 'none'
+                          }}
+                        >
+                          👤 Guest {index + 1}: 
+                          <span style={{ 
+                            fontFamily: 'monospace', 
+                            background: showFullAadhar ? '#e8f5e9' : '#f5f5f5',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            marginLeft: '4px'
+                          }}>
+                            {getDisplayAadhar(aadhar)}
+                          </span>
+                          {showFullAadhar && (
+                            <span style={{ 
+                              fontSize: '10px', 
+                              color: '#4CAF50', 
+                              marginLeft: '6px',
+                              fontWeight: 'bold'
+                            }}>
+                              ✅ Full
+                            </span>
+                          )}
                         </div>
                       ))
                     ) : (
@@ -418,6 +520,7 @@ const AdminBookings = () => {
         </table>
       </div>
 
+      {/* Aadhar Image Popup */}
       {selectedAadhar && (
         <div className="aadhar-popup-overlay" onClick={() => setSelectedAadhar(null)}>
           <div className="aadhar-popup-content" onClick={(e) => e.stopPropagation()}>
@@ -427,6 +530,34 @@ const AdminBookings = () => {
           </div>
         </div>
       )}
+
+      {/* ✅ Footer with Security Note */}
+      <div style={{
+        marginTop: '30px',
+        padding: '15px',
+        background: '#f8f9fa',
+        borderRadius: '8px',
+        textAlign: 'center',
+        color: '#666',
+        fontSize: '13px',
+        border: '1px solid #dee2e6'
+      }}>
+        <p>
+          <strong>🔒 Security Note:</strong> 
+          {showFullAadhar ? (
+            <span style={{ color: '#dc3545', fontWeight: 'bold' }}>
+              ⚠️ Full Aadhar numbers are currently visible. Only authorized admin personnel should view this data.
+            </span>
+          ) : (
+            <span style={{ color: '#28a745' }}>
+              ✅ Aadhar numbers are masked for security. Click "Show Full Aadhar" to view complete numbers.
+            </span>
+          )}
+        </p>
+        <p style={{ fontSize: '12px', marginTop: '5px', color: '#888' }}>
+          All Aadhar data is stored securely in compliance with Indian data protection laws.
+        </p>
+      </div>
     </div>
   );
 };
